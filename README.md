@@ -91,6 +91,7 @@ pip install sharp gsplat imageio
 - sharp_2572gikvuh.pt (约 2.7GB)
 
 5. **启动服务**
+`
 # 基本启动
 python app.py
 
