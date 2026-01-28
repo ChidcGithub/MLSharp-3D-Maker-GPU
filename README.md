@@ -93,15 +93,15 @@ pip install sharp gsplat imageio
 5. **启动服务**
 
 
-##基本启动
+基本启动
 `
 python app.py
 `
-##使用 GPU 模式
+        使用 GPU 模式
 `
 python app.py --mode gpu
 `
-##自定义端口
+        自定义端口
 `
 python app.py --port 8080
 `
@@ -166,8 +166,7 @@ http://127.0.0.1:8000
 
 ### 配置文件 (YAML)
 
-``
-config.yaml
+`
 server:
   host: ""127.0.0.1""
   port: 8000
@@ -181,7 +180,7 @@ gpu:
   enable_amp: true
   enable_cudnn_benchmark: true
   enable_tf32: true
-``
+`
 
 ### Python API 调用
 `
