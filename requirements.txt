@@ -1,0 +1,24 @@
+﻿# Deep Learning
+torch>=2.0.0
+torchvision>=0.15.0
+
+# FastAPI and Server
+fastapi>=0.128.0
+uvicorn[standard]>=0.40.0
+python-multipart>=0.0.21
+
+# 3D Gaussian Splatting
+sharp>=0.1.0
+gsplat>=0.1.0
+
+# Image Processing
+imageio>=2.31.0
+numpy>=1.24.0
+
+# Utilities
+loguru>=0.7.0
+pyyaml>=6.0
+colorama>=0.4.6
+
+# Testing
+pytest>=7.4.0

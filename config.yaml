@@ -1,0 +1,38 @@
+# MLSharp-3D-Maker 配置文件
+# 支持的格式: YAML
+
+# 服务配置
+server:
+  host: "127.0.0.1"        # 服务主机地址
+  port: 8000               # 服务端口
+
+# 启动模式
+mode: "auto"               # 启动模式: auto, gpu, cpu, nvidia, amd
+
+# 浏览器配置
+browser:
+  auto_open: true          # 自动打开浏览器
+
+# GPU 优化配置
+gpu:
+  enable_amp: true         # 启用混合精度推理 (AMP)
+  enable_cudnn_benchmark: true  # 启用 cuDNN Benchmark
+  enable_tf32: true        # 启用 TensorFloat32
+
+# 日志配置
+logging:
+  level: "INFO"            # 日志级别: DEBUG, INFO, WARNING, ERROR
+  console: true            # 控制台输出
+  file: false              # 文件输出
+
+# 模型配置
+model:
+  checkpoint: "model_assets/sharp_2572gikvuh.pt"  # 模型权重路径
+  temp_dir: "temp_workspace"                     # 临时工作目录
+
+# 性能配置
+performance:
+  max_workers: 4           # 最大工作线程数
+  max_concurrency: 10      # 最大并发数
+  timeout_keep_alive: 30   # 保持连接超时(秒)
+  max_requests: 1000       # 最大请求数
