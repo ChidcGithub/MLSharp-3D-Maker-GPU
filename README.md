@@ -633,7 +633,7 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
    - 推荐值: CPU 核心数 / 2
 
 3. **使用更快的启动脚本**
-   - `Start_CPU_Fast.bat` - 快速模式
+   - `Start_CPU_Fast.bat` - 快速模式（已弃用，可用Start.ps1）
 
 ### 系统级优化
 1. **增加虚拟内存**
