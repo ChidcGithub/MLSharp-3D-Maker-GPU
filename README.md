@@ -92,18 +92,14 @@ pip install sharp gsplat imageio
 
 5. **启动服务**
 
-
-# 基本启动
 `
+基本启动
 python app.py
-`
-# 使用 GPU 模式
-`
-python app.py --mode gpu
-`
 
-# 自定义端口
-`
+使用 GPU 模式
+python app.py --mode gpu
+
+自定义端口
 python app.py --port 8080
 `
 6. **访问界面**
@@ -163,7 +159,8 @@ python app.py --port 8080
 
 ### 配置文件 (YAML)
 
-`config.yaml
+`
+config.yaml
 server:
   host: ""127.0.0.1""
   port: 8000
@@ -185,7 +182,8 @@ python
 import requests
 `
 # 生成 3D 模型
-`with open(""input.jpg"", ""rb"") as f:
+`
+with open(""input.jpg"", ""rb"") as f:
     response = requests.post(
         ""http://127.0.0.1:8000/api/predict"",
         files={""file"": f}
@@ -196,7 +194,8 @@ import requests
     print(f""Processing time: {result['processing_time']:.2f}s"")
 `
 # 健康检查
-`response = requests.get(""http://127.0.0.1:8000/api/health"")
+`
+response = requests.get(""http://127.0.0.1:8000/api/health"")
 print(response.json())
 `
 # 系统统计
