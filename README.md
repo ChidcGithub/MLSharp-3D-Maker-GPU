@@ -94,16 +94,20 @@ pip install sharp gsplat imageio
 
 
 # 基本启动
+`
 python app.py
-
+`
 # 使用 GPU 模式
+`
 python app.py --mode gpu
+`
 
 # 自定义端口
+`
 python app.py --port 8080
 `
 6. **访问界面**
-打开浏览器访问: http://127.0.0.1:8000
+打开浏览器访问: `http://127.0.0.1:8000`
 
 
 ---
@@ -133,33 +137,33 @@ python app.py --port 8080
 ### 命令行参数
 
 # 自动检测模式
-python app.py
+`python app.py`
 
 # 强制 GPU 模式
-python app.py --mode gpu
+`python app.py --mode gpu`
 
 # 强制 CPU 模式
-python app.py --mode cpu
+`python app.py --mode cpu`
 
 # 指定 NVIDIA GPU
-python app.py --mode nvidia
+`python app.py --mode nvidia`
 
 # 指定 AMD GPU
-python app.py --mode amd
+`python app.py --mode amd`
 
 # 自定义端口
-python app.py --port 8080
+`python app.py --port 8080`
 
 # 不自动打开浏览器
-python app.py --no-browser
+`python app.py --no-browser`
 
 # 使用配置文件
-python app.py --config config.yaml
+`python app.py --config config.yaml`
 
 
 ### 配置文件 (YAML)
 
-# config.yaml
+`config.yaml
 server:
   host: ""127.0.0.1""
   port: 8000
@@ -173,15 +177,15 @@ gpu:
   enable_amp: true
   enable_cudnn_benchmark: true
   enable_tf32: true
-
+`
 
 ### Python API 调用
-
+`
 python
 import requests
-
+`
 # 生成 3D 模型
-with open(""input.jpg"", ""rb"") as f:
+`with open(""input.jpg"", ""rb"") as f:
     response = requests.post(
         ""http://127.0.0.1:8000/api/predict"",
         files={""file"": f}
@@ -190,15 +194,15 @@ with open(""input.jpg"", ""rb"") as f:
     print(f""Status: {result['status']}"")
     print(f""PLY URL: {result['url']}"")
     print(f""Processing time: {result['processing_time']:.2f}s"")
-
+`
 # 健康检查
-response = requests.get(""http://127.0.0.1:8000/api/health"")
+`response = requests.get(""http://127.0.0.1:8000/api/health"")
 print(response.json())
-
+`
 # 系统统计
-response = requests.get(""http://127.0.0.1:8000/api/stats"")
+`response = requests.get(""http://127.0.0.1:8000/api/stats"")
 print(response.json())
-
+`
 
 ---
 
@@ -235,13 +239,13 @@ MLSharp-3D-Maker/
 ## 🧪 运行测试
 
 # 运行所有测试
-python test_simple.py
+`python test_simple.py`
 
 # 运行单元测试
-python -m unittest test_app
+`python -m unittest test_app`
 
 # 运行测试脚本
-./run_tests.bat  # Windows
+`./run_tests.bat  # Windows`
 
 
 ---
@@ -249,12 +253,12 @@ python -m unittest test_app
 ## 🐛 常见问题
 
 ### 1. CUDA 不可用
-`bash
-# 检查 CUDA
-python -c ""import torch; print(torch.cuda.is_available())""
 
+# 检查 CUDA
+`python -c ""import torch; print(torch.cuda.is_available())""
+`
 # 重新安装 PyTorch with CUDA
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+`pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 `
 
 ### 2. 显存不足
