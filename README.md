@@ -91,7 +91,7 @@ pip install sharp gsplat imageio
 - sharp_2572gikvuh.pt (约 2.7GB)
 
 5. **启动服务**
-
+`
 # 基本启动
 python app.py
 
@@ -130,7 +130,7 @@ python app.py --port 8080
 ## 💡 使用示例
 
 ### 命令行参数
-
+`
 # 自动检测模式
 python app.py
 
@@ -232,7 +232,7 @@ MLSharp-3D-Maker/
 ---
 
 ## 🧪 运行测试
-
+`
 # 运行所有测试
 python test_simple.py
 
