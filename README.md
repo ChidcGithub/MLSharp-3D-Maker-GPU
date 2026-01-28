@@ -156,7 +156,7 @@ python app.py --config config.yaml
 `
 
 ### 配置文件 (YAML)
-`
+
 # config.yaml
 server:
   host: ""127.0.0.1""
@@ -196,7 +196,7 @@ print(response.json())
 # 系统统计
 response = requests.get(""http://127.0.0.1:8000/api/stats"")
 print(response.json())
-`
+
 
 ---
 
@@ -231,7 +231,7 @@ MLSharp-3D-Maker/
 ---
 
 ## 🧪 运行测试
-`
+
 # 运行所有测试
 python test_simple.py
 
@@ -240,7 +240,7 @@ python -m unittest test_app
 
 # 运行测试脚本
 ./run_tests.bat  # Windows
-`
+
 
 ---
 
