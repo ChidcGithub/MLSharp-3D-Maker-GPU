@@ -158,7 +158,7 @@ python app.py --config config.yaml
 
 
 ### 配置文件 (YAML)
-
+`
 # config.yaml
 server:
   host: ""127.0.0.1""
@@ -198,7 +198,7 @@ print(response.json())
 # 系统统计
 response = requests.get(""http://127.0.0.1:8000/api/stats"")
 print(response.json())
-
+`
 
 ---
 
