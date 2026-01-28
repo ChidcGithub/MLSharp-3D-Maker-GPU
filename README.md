@@ -131,7 +131,7 @@ python app.py --port 8080
 ## 💡 使用示例
 
 ### 命令行参数
-`
+
 # 自动检测模式
 python app.py
 
@@ -155,7 +155,7 @@ python app.py --no-browser
 
 # 使用配置文件
 python app.py --config config.yaml
-`
+
 
 ### 配置文件 (YAML)
 
