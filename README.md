@@ -6,6 +6,7 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.128+-green.svg)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
+</div>
 
 # 使用说明
 
