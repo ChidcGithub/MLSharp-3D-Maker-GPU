@@ -677,11 +677,9 @@ copy tmp\1.28\app.py.before_refactor.py app.py
 
 ### 待改进 🔄
 #### 高优先级
-1. **监控指标** - 添加性能监控和指标收集
-   - Prometheus 集成
+1. **内存压缩** - 添加内存压缩功能
+   - 实时监控内存，防止溢出
    - 实时性能仪表板
-   - 请求响应时间统计
-   - GPU 利用率监控
 
 2. **API 文档** - 自动生成 API 文档
    - Swagger/OpenAPI 集成
