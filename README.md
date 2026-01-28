@@ -130,7 +130,6 @@ python app.py --port 8080
 
 ### 命令行参数
 
-`ash
 # 自动检测模式
 python app.py
 
