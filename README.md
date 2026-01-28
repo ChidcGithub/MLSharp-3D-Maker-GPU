@@ -337,8 +337,8 @@ MLSharp-3D-Maker/
 
 ## 📮 联系方式
 
-- 项目主页: [https://github.com/yourusername/MLSharp-3D-Maker](https://github.com/yourusername/MLSharp-3D-Maker)
-- 问题反馈: [Issues](https://github.com/yourusername/MLSharp-3D-Maker/issues)
+- 项目主页: [https://github.com/ChidcGithub/MLSharp-3D-Maker-GPU](https://github.com/ChidcGithub/MLSharp-3D-Maker-GPU)
+- 问题反馈: [Issues](https://github.com/ChidcGithub/MLSharp-3D-Maker-GPU/issues)
 
 ---
 
