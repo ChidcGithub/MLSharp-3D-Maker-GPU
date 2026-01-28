@@ -153,11 +153,10 @@ python app.py --no-browser
 
 # 使用配置文件
 python app.py --config config.yaml
-`
+
 
 ### 配置文件 (YAML)
 
-`yaml
 # config.yaml
 server:
   host: ""127.0.0.1""
@@ -233,7 +232,6 @@ MLSharp-3D-Maker/
 
 ## 🧪 运行测试
 
-`bash
 # 运行所有测试
 python test_simple.py
 
@@ -337,6 +335,6 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 
 **如果这个项目对你有帮助，请给个 ⭐️ Star！**
 
-Modded with ❤️ by Chidc with Coder DoDo
+Modded with ❤️ by Chidc with Provider DoDo
 
 </div>
