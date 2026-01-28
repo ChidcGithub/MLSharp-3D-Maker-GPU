@@ -88,7 +88,7 @@ pip install sharp gsplat imageio
 
 4. **下载模型**
 下载 SHaRP 模型权重文件并放置到 model_assets/ 目录：
-- sharp_2572gikvuh.pt (约 2.7GB)
+- `sharp_2572gikvuh.pt` (约 2.7GB)
 
 5. **启动服务**
 
@@ -102,8 +102,12 @@ python app.py --mode gpu
 自定义端口
 python app.py --port 8080
 `
+
 6. **访问界面**
-打开浏览器访问: `http://127.0.0.1:8000`
+打开浏览器访问: 
+`
+http://127.0.0.1:8000
+`
 
 
 ---
