@@ -91,7 +91,8 @@ pip install sharp gsplat imageio
 - sharp_2572gikvuh.pt (约 2.7GB)
 
 5. **启动服务**
-`
+
+
 # 基本启动
 python app.py
 
@@ -103,7 +104,8 @@ python app.py --port 8080
 `
 6. **访问界面**
 打开浏览器访问: http://127.0.0.1:8000
-`
+
+
 ---
 
 ## 📖 API 文档
