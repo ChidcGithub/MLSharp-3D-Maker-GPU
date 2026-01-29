@@ -815,7 +815,7 @@ python app.py --enable-auto-tune --mode gpu --input-size 1024 1024
 <details>
 <summary><b>👉 点击展开查看推理缓存详情</b></summary>
 
-MLSharp 提供了智能推理缓存功能，可以显著提升重复场景的处理速度。
+## MLSharp 提供了智能推理缓存功能，可以显著提升重复场景的处理速度。
 
 ### 缓存特性
 
@@ -903,7 +903,7 @@ curl -X POST http://127.0.0.1:8000/api/cache/clear
 <details>
 <summary><b>👉 点击展开查看监控指标详情</b></summary>
 
-MLSharp 提供了完整的 Prometheus 兼容监控指标，可用于性能监控和问题诊断。
+## MLSharp 提供了完整的 Prometheus 兼容监控指标，可用于性能监控和问题诊断。
 
 ### 启用监控
 
