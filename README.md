@@ -58,6 +58,32 @@ MLSharp-3D-Maker 是一个基于 Apple SHaRP 模型的 3D 高斯泼溅（3D Gaus
 
 **总体完成度: 96%**
 
+---
+
+## 📁 项目结构及更新
+
+```
+MLSharp-3D-Maker-GPU-by-Chidc/
+├── app.py                        # 主应用程序（重构版本）⭐
+├── config.yaml                   # YAML 格式配置文件
+├── config.json                   # JSON 格式配置文件
+├── gpu_utils.py                  # GPU 工具模块
+├── logger.py                     # 日志模块
+├── metrics.py                    # 监控指标模块 ⭐
+├── optimistic.md                 # 性能优化方案文档 ⭐
+├── Start.bat                     # Windows 启动脚本
+├── Start.ps1                     # PowerShell 启动脚本
+├── model_assets/                 # 模型文件和资源
+│   ├── sharp_2572gikvuh.pt      # SHaRP 模型权重
+│   ├── inputs/                   # 输入示例
+│   └── outputs/                  # 输出示例
+├── python_env/                   # Python 环境
+├── logs/                         # 日志文件夹
+├── tmp/                          # 临时文件和备份
+│   └── 1.28/                     # 2026-01-28 备份
+└── temp_workspace/               # 临时工作目录
+```
+
 <details>
 <summary><b>👉 点击展开查看最新更新详情</b></summary>
 
@@ -318,32 +344,6 @@ python app.py -h
 
 ---
 
-## 📁 项目结构
-
-```
-MLSharp-3D-Maker-GPU-by-Chidc/
-├── app.py                        # 主应用程序（重构版本）⭐
-├── config.yaml                   # YAML 格式配置文件
-├── config.json                   # JSON 格式配置文件
-├── gpu_utils.py                  # GPU 工具模块
-├── logger.py                     # 日志模块
-├── metrics.py                    # 监控指标模块 ⭐
-├── optimistic.md                 # 性能优化方案文档 ⭐
-├── Start.bat                     # Windows 启动脚本
-├── Start.ps1                     # PowerShell 启动脚本
-├── model_assets/                 # 模型文件和资源
-│   ├── sharp_2572gikvuh.pt      # SHaRP 模型权重
-│   ├── inputs/                   # 输入示例
-│   └── outputs/                  # 输出示例
-├── python_env/                   # Python 环境
-├── logs/                         # 日志文件夹
-├── tmp/                          # 临时文件和备份
-│   └── 1.28/                     # 2026-01-28 备份
-└── temp_workspace/               # 临时工作目录
-```
-
----
-
 ## 📊 GPU 支持情况
 
 <details>
@@ -380,6 +380,9 @@ MLSharp-3D-Maker-GPU-by-Chidc/
 ---
 
 ## 📊 日志系统
+
+<details>
+<summary><b>👉 点击展开查看日志系统详情</b></summary>
 
 ### 日志特性
 
@@ -430,6 +433,7 @@ dir logs\
 # 查看错误日志
 findstr /C:"ERROR" logs\mlsharp_*.log
 ```
+</details>
 
 ---
 
@@ -708,7 +712,10 @@ python app.py --config config.yaml --port 8080
 
 ## ⚡ 性能自动调优
 
-MLSharp 提供了智能性能自动调优功能，可以自动测试并选择最优的优化配置。
+<details>
+<summary><b>👉 点击展开查看自动调优功能详情</b></summary>
+
+### MLSharp 提供了智能性能自动调优功能，可以自动测试并选择最优的优化配置。
 
 ### 调优特性
 
@@ -798,6 +805,7 @@ python app.py --enable-auto-tune --mode gpu --input-size 1024 1024
 2. **硬件变更**: 更换显卡后重新运行自动调优
 3. **驱动更新**: 显卡驱动更新后重新测试
 4. **定期调优**: 建议每月运行一次自动调优
+</details>
 
 ---
 
@@ -1055,20 +1063,10 @@ curl 'http://localhost:9090/api/v1/query?query=gpu_utilization_percent'
 
 ---
 
-## 📝 技术栈
+## 🔬 代码架构
 
-- **后端框架**: FastAPI + Uvicorn
-- **深度学习**: PyTorch + Apple SHaRP 模型
-- **3D 渲染**: 3D Gaussian Splatting
-- **GPU 加速**: CUDA (NVIDIA) / ROCm (AMD)
-- **CPU 优化**: OpenMP / MKL
-- **日志系统**: Loguru
-- **监控指标**: Prometheus + Prometheus Client
-- **架构设计**: 面向对象 + 管理器模式
-
----
-
-## 🔬 代码架构（重构后）
+<details>
+<summary><b>👉 点击展开查看代码架构详情</b></summary>
 
 ### 核心类
 
@@ -1107,6 +1105,93 @@ curl 'http://localhost:9090/api/v1/query?query=gpu_utilization_percent'
 | 首次推理 | ~30-40秒 | ~30-40秒 | 无变化   |
 | 后续推理 | ~15-20秒 | ~15-20秒 | 无变化   |
 | 内存占用 | ~2-4GB  | ~2-4GB  | 无变化   |
+
+</details>
+
+---
+
+## ⚡ 性能优化建议
+
+<details>
+<summary><b>👉 点击展开查看性能优化建议</b></summary>
+
+### GPU 模式优化
+1. **使用合适的图片尺寸**
+   - 推荐: 512x512 - 1024x1024
+   - 避免超过 2048x2048
+
+2. **启用所有优化**
+   - AMP（混合精度）已默认启用
+   - cuDNN Benchmark 已默认启用
+   - TF32 已默认启用（Ampere 架构）
+
+3. **显存不足时启用梯度检查点**
+   - 使用 `--gradient-checkpointing` 参数
+   - 可减少 30-50% 显存占用
+   - 速度略微降低 10-20%（可接受）
+
+4. **关闭其他 GPU 占用程序**
+   - 关闭浏览器硬件加速
+   - 关闭其他 AI 应用
+   - 关闭游戏或图形密集型应用
+
+### CPU 模式优化
+1. **使用更小的图片**
+   - 推荐: 512x512 或更小
+
+2. **减少并发数**
+   - 修改配置中的 `max_workers`
+   - 推荐值: CPU 核心数 / 2
+
+3. **使用更快的启动脚本**
+   - `Start_CPU_Fast.bat` - 快速模式
+
+### 系统级优化
+1. **增加虚拟内存**
+   - 设置为物理内存的 1.5-2 倍
+
+2. **使用 SSD**
+   - 模型加载和 I/O 操作更快
+
+3. **关闭不必要的后台程序**
+- 释放更多系统资源
+
+</details>
+
+---
+
+## 🐛 当前已知问题
+
+<details>
+<summary><b>👉 点击展开查看当前已知问题</b></summary>
+
+### 问题 1: CUDA 不可用（Intel 集显 + NVIDIA 独显）
+**症状**: 系统检测到 NVIDIA 显卡但提示 CUDA 不可用
+**原因**: PyTorch 可能未编译 CUDA 支持或驱动未正确安装
+**解决方案**:
+```bash
+# 检查 CUDA 是否可用
+python -c "import torch; print(torch.cuda.is_available())"
+
+# 如果返回 False，重新安装带 CUDA 的 PyTorch
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+```
+
+### 问题 2: ProcessPoolExecutor 内存占用较高
+**症状**: 多个并发请求时内存占用增长较快
+**原因**: 进程池会为每个进程创建独立的内存空间
+**解决方案**:
+- 减少进程池大小：`max_workers=2`
+- 或回退到线程池：改用 `ThreadPoolExecutor`
+
+### 问题 3: 日志文件可能过大
+**症状**: logs/ 目录占用大量磁盘空间
+**原因**: loguru 默认不限制日志文件大小
+**解决方案**:
+- 定期清理旧日志文件
+- 或在配置中启用日志压缩
+
+</details>
 
 ---
 
@@ -1197,83 +1282,16 @@ curl 'http://localhost:9090/api/v1/query?query=gpu_utilization_percent'
 
 ---
 
-## 🐛 当前已知问题
+## 📝 技术栈
 
-### 问题 1: CUDA 不可用（Intel 集显 + NVIDIA 独显）
-**症状**: 系统检测到 NVIDIA 显卡但提示 CUDA 不可用
-**原因**: PyTorch 可能未编译 CUDA 支持或驱动未正确安装
-**解决方案**:
-```bash
-# 检查 CUDA 是否可用
-python -c "import torch; print(torch.cuda.is_available())"
-
-# 如果返回 False，重新安装带 CUDA 的 PyTorch
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
-```
-
-### 问题 2: ProcessPoolExecutor 内存占用较高
-**症状**: 多个并发请求时内存占用增长较快
-**原因**: 进程池会为每个进程创建独立的内存空间
-**解决方案**:
-- 减少进程池大小：`max_workers=2`
-- 或回退到线程池：改用 `ThreadPoolExecutor`
-
-### 问题 3: 日志文件可能过大
-**症状**: logs/ 目录占用大量磁盘空间
-**原因**: loguru 默认不限制日志文件大小
-**解决方案**:
-- 定期清理旧日志文件
-- 或在配置中启用日志压缩
-
----
-
-## ⚡ 性能优化建议
-
-<details>
-<summary><b>👉 点击展开查看性能优化建议</b></summary>
-
-### GPU 模式优化
-1. **使用合适的图片尺寸**
-   - 推荐: 512x512 - 1024x1024
-   - 避免超过 2048x2048
-
-2. **启用所有优化**
-   - AMP（混合精度）已默认启用
-   - cuDNN Benchmark 已默认启用
-   - TF32 已默认启用（Ampere 架构）
-
-3. **显存不足时启用梯度检查点**
-   - 使用 `--gradient-checkpointing` 参数
-   - 可减少 30-50% 显存占用
-   - 速度略微降低 10-20%（可接受）
-
-4. **关闭其他 GPU 占用程序**
-   - 关闭浏览器硬件加速
-   - 关闭其他 AI 应用
-   - 关闭游戏或图形密集型应用
-
-### CPU 模式优化
-1. **使用更小的图片**
-   - 推荐: 512x512 或更小
-
-2. **减少并发数**
-   - 修改配置中的 `max_workers`
-   - 推荐值: CPU 核心数 / 2
-
-3. **使用更快的启动脚本**
-   - `Start_CPU_Fast.bat` - 快速模式
-
-### 系统级优化
-1. **增加虚拟内存**
-   - 设置为物理内存的 1.5-2 倍
-
-2. **使用 SSD**
-   - 模型加载和 I/O 操作更快
-
-3. **关闭不必要的后台程序**
-- 释放更多系统资源
-
-</details>
+- **后端框架**: FastAPI + Uvicorn
+- **深度学习**: PyTorch + Apple SHaRP 模型
+- **3D 渲染**: 3D Gaussian Splatting
+- **GPU 加速**: CUDA (NVIDIA) / ROCm (AMD)
+- **CPU 优化**: OpenMP / MKL
+- **日志系统**: Loguru
+- **监控指标**: Prometheus + Prometheus Client
+- **架构设计**: 面向对象 + 管理器模式
 
 ---
 
