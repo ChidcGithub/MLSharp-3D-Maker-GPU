@@ -630,6 +630,7 @@ python app.py --config config.yaml --port 8080
 1. 检查 Python 环境是否完整
 2. 查看日志文件 `logs/` 中的错误信息
 3. 使用命令行参数查看详细错误：`python app.py --no-browser`
+4. 检查项目路径是否存在中文
 
 ### 问题 2: GPU 检测不到
 **症状**: 提示使用 CPU 模式，但实际有 GPU
