@@ -1208,9 +1208,9 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 - Windows 11 兼容
 
 ### v4.0 (2026-01-17)
-- 智能自动诊断程序
+- 智能自动诊断程序（现已弃用）
 - GPU 兼容性修复
-- 日志系统
+- 日志系统（现已改进）
 - Unicode 编码修复
 
 ### v3.0
