@@ -1096,6 +1096,6 @@ copy tmp\1.28\app.py.before_refactor.py app.py
 
 **如果这个项目对你有帮助，请给个 ⭐️ Star！**
 
-Modded with ❤️ by Chidc with CPU-Mode-Provider DoDo
+Modded with ❤️ by Chidc with CPU-Mode-Provider GemosDoDo
 
 </div>
