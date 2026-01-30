@@ -1117,6 +1117,7 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 2. 查看日志文件 `logs/` 中的错误信息
 3. 使用命令行参数查看详细错误：`python app.py --no-browser`
 4. 检查项目路径是否存在中文
+5. 检查是否使用了Powershell 7运行脚本
 
 ### 问题 2: GPU 检测不到
 **症状**: 提示使用 CPU 模式，但实际有 GPU
