@@ -37,8 +37,7 @@
 ## 项目概述
 
 MLSharp-3D-Maker 是一个基于 Apple SHaRP 模型的 3D 高斯泼溅（3D Gaussian Splatting）生成工具，可以从单张照片生成高质量的 3D 模型。
-### 此项目为**GPU特殊优化版**，推理速度可达到8s/p，相对于其他仓库版本提升**~900%**
-(测试环境：CPU：13th Gen Intel(R) Core(TM) i9-13900H，GPU:NVIDIA GeForce RTX 4060 Laptop GPU)
+
 ### 项目完成度
 
 | 模块     | 状态     | 完成度  | 说明                   |
@@ -1117,7 +1116,6 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 2. 查看日志文件 `logs/` 中的错误信息
 3. 使用命令行参数查看详细错误：`python app.py --no-browser`
 4. 检查项目路径是否存在中文
-5. 检查是否使用了Powershell 7运行脚本
 
 ### 问题 2: GPU 检测不到
 **症状**: 提示使用 CPU 模式，但实际有 GPU
@@ -1267,7 +1265,17 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
    - 速率限制
 
 #### 中优先级
-1. **Webhook 支持** - 异步通知
+1. **任务队列** - 异步任务处理
+   - Redis 队列支持
+   - 任务状态追踪
+   - 批量处理支持
+
+2. **缓存机制** - 提升响应速度
+   - Redis 缓存
+   - 结果缓存
+   - 预测结果缓存
+
+3. **Webhook 支持** - 异步通知
    - 任务完成通知
    - 错误通知
    - 自定义回调

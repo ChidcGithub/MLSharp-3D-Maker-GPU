@@ -30,6 +30,26 @@ model:
   checkpoint: "model_assets/sharp_2572gikvuh.pt"  # 模型权重路径
   temp_dir: "temp_workspace"                     # 临时工作目录
 
+# 推理配置
+inference:
+  input_size: [1536, 1536]  # 输入图像尺寸 [宽度, 高度] (默认: 1536x1536)
+
+# 优化配置
+optimization:
+  gradient_checkpointing: false  # 启用梯度检查点（减少显存占用，但会略微降低推理速度）
+  checkpoint_segments: 3         # 梯度检查点分段数（暂未使用）
+
+# 缓存配置
+cache:
+  enabled: true                  # 启用推理缓存（默认：启用）
+  size: 100                      # 缓存最大条目数（默认：100）
+
+# 监控配置
+monitoring:
+  enabled: true            # 启用监控
+  enable_gpu: true         # 启用 GPU 监控
+  metrics_path: "/metrics" # Prometheus 指标端点路径
+
 # 性能配置
 performance:
   max_workers: 4           # 最大工作线程数

@@ -118,7 +118,7 @@ Write-Host ""
 Write-Host "==============================================================================================" -ForegroundColor Cyan
 Write-Host ""
 
-& $pythonPath "app.py"
+& $pythonPath "app.py" --enable-auto-tune
 
 # 错误处理
 if ($LASTEXITCODE -ne 0) {

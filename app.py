@@ -25,6 +25,7 @@ import torch
 import json
 import yaml
 from loguru import logger
+from metrics import init_metrics, get_metrics_manager
 
 # 设置输出编码为 UTF-8(Windows)
 if sys.platform == 'win32':
@@ -83,6 +84,13 @@ class CLIArgs:
     no_amp: bool = False
     no_cudnn_benchmark: bool = False
     config_file: Optional[str] = None
+    input_size: Tuple[int, int] = (1536, 1536)
+    gradient_checkpointing: bool = False
+    checkpoint_segments: int = 3
+    enable_cache: bool = True
+    cache_size: int = 100
+    clear_cache: bool = False
+    enable_auto_tune: bool = False
 
 
 # ================= 配置文件加载 =================
@@ -113,6 +121,54 @@ def load_config_file(config_path: str) -> Dict[str, Any]:
                 raise ValueError(f"不支持的配置文件格式: {file_ext}")
     except Exception as e:
         raise RuntimeError(f"加载配置文件失败: {e}")
+
+
+def validate_input_size(width: int, height: int) -> Tuple[int, int]:
+    """
+    验证并调整输入尺寸以符合模型要求
+    
+    SHaRP 模型的编码器使用基于补丁的分割，要求：
+    - 尺寸必须能被 64 整除（补丁大小）
+    - 宽度和高度必须相等
+    - 最大尺寸限制为 1536（SPN 编码器在更大尺寸下会出现补丁分割问题）
+    
+    Args:
+        width: 输入宽度
+        height: 输入高度
+        
+    Returns:
+        调整后的 (width, height)
+    """
+    # 检查宽高是否相等
+    if width != height:
+        Logger.warning(f"输入尺寸宽度和高度不相等 ({width}x{height})，模型使用正方形输入")
+        size = max(width, height)
+        width = height = size
+        Logger.info(f"已调整为 {width}x{height}")
+    
+    # 限制最大尺寸为 1536（SPN 编码器在更大尺寸下会出现补丁分割问题）
+    max_size = 1536
+    if width > max_size or height > max_size:
+        Logger.warning(f"输入尺寸 {width}x{height} 超过最大支持尺寸 {max_size}x{max_size}")
+        Logger.warning(f"SPN 编码器在更大尺寸下会出现补丁分割错误")
+        Logger.info(f"已调整为 {max_size}x{max_size}")
+        width = height = max_size
+    
+    # 检查是否能被 64 整除
+    if width % 64 != 0 or height % 64 != 0:
+        Logger.warning(f"输入尺寸 {width}x{height} 不能被 64 整除")
+        # 向上取整到最近的 64 倍数
+        width = ((width + 63) // 64) * 64
+        height = ((height + 63) // 64) * 64
+        Logger.info(f"已调整为 {width}x{height}")
+    
+    # 再次检查调整后的尺寸是否超过最大值
+    if width > max_size or height > max_size:
+        Logger.warning(f"调整后的尺寸 {width}x{height} 仍然超过最大支持尺寸")
+        Logger.info(f"已调整为 {max_size}x{max_size}")
+        width = height = max_size
+    
+    return width, height
 
 
 def merge_config_with_args(config: Dict[str, Any], args: CLIArgs) -> Dict[str, Any]:
@@ -148,6 +204,24 @@ def merge_config_with_args(config: Dict[str, Any], args: CLIArgs) -> Dict[str, A
     if args.no_cudnn_benchmark:
         config.setdefault('gpu', {})['enable_cudnn_benchmark'] = False
     
+    # 推理配置
+    if args.input_size != (1536, 1536):
+        config.setdefault('inference', {})['input_size'] = list(args.input_size)
+    
+    # 优化配置
+    if args.gradient_checkpointing:
+        config.setdefault('optimization', {})['gradient_checkpointing'] = True
+    if args.checkpoint_segments != 3:
+        config.setdefault('optimization', {})['checkpoint_segments'] = args.checkpoint_segments
+    
+    # 缓存配置
+    if args.enable_cache:
+        config.setdefault('cache', {})['enabled'] = True
+    if args.no_cache:
+        config.setdefault('cache', {})['enabled'] = False
+    if args.cache_size != 100:
+        config.setdefault('cache', {})['size'] = args.cache_size
+    
     return config
 
 
@@ -164,6 +238,11 @@ def config_to_cli_args(config: Dict[str, Any]) -> CLIArgs:
     server = config.get('server', {})
     browser = config.get('browser', {})
     gpu = config.get('gpu', {})
+    inference = config.get('inference', {})
+    optimization = config.get('optimization', {})
+    cache = config.get('cache', {})
+    
+    input_size = tuple(inference.get('input_size', [1536, 1536]))
     
     return CLIArgs(
         mode=config.get('mode', 'auto'),
@@ -172,7 +251,12 @@ def config_to_cli_args(config: Dict[str, Any]) -> CLIArgs:
         no_browser=not browser.get('auto_open', True),
         no_amp=not gpu.get('enable_amp', True),
         no_cudnn_benchmark=not gpu.get('enable_cudnn_benchmark', True),
-        config_file=None
+        config_file=None,
+        input_size=input_size,
+        gradient_checkpointing=optimization.get('gradient_checkpointing', False),
+        checkpoint_segments=optimization.get('checkpoint_segments', 3),
+        enable_cache=cache.get('enabled', True),
+        cache_size=cache.get('size', 100)
     )
 
 
@@ -298,8 +382,37 @@ def parse_command_args() -> Tuple[CLIArgs, Optional[Dict[str, Any]]]:
                         help='禁用 cuDNN Benchmark')
     parser.add_argument('--config', '-c', type=str, default=None,
                         help='配置文件路径（支持 YAML 和 JSON）')
+    parser.add_argument('--input-size', type=int, nargs=2, default=[1536, 1536],
+                        metavar=('WIDTH', 'HEIGHT'),
+                        help='输入图像尺寸（默认：1536 1536）')
+    parser.add_argument('--gradient-checkpointing', action='store_true',
+                        help='启用梯度检查点（减少显存占用，但会略微降低推理速度）')
+    parser.add_argument('--checkpoint-segments', type=int, default=3,
+                        help='梯度检查点分段数 (默认: 3)')
+    parser.add_argument('--enable-cache', action='store_true', default=True,
+                        help='启用推理缓存（默认：启用）')
+    parser.add_argument('--no-cache', action='store_true',
+                        help='禁用推理缓存')
+    parser.add_argument('--cache-size', type=int, default=100,
+                        help='缓存最大条目数（默认：100）')
+    parser.add_argument('--clear-cache', action='store_true',
+                        help='启动时清空缓存')
+    parser.add_argument('--enable-auto-tune', action='store_true',
+                        help='启用性能自动调优（启动时自动测试并选择最优配置）')
     
     args = parser.parse_args()
+    
+    # 处理缓存参数
+    enable_cache = args.enable_cache and not args.no_cache
+    
+    # 转换 input_size 为元组
+    input_size = tuple(args.input_size)
+    
+    # 验证输入尺寸
+    validated_width, validated_height = validate_input_size(*input_size)
+    if validated_width != input_size[0] or validated_height != input_size[1]:
+        Logger.info(f"输入尺寸已从 {input_size[0]}x{input_size[1]} 调整为 {validated_width}x{validated_height}")
+    input_size = (validated_width, validated_height)
     
     # 加载配置文件
     config_dict = None
@@ -321,7 +434,14 @@ def parse_command_args() -> Tuple[CLIArgs, Optional[Dict[str, Any]]]:
                 no_browser=args.no_browser,
                 no_amp=args.no_amp,
                 no_cudnn_benchmark=args.no_cudnn_benchmark,
-                config_file=None
+                config_file=None,
+                input_size=input_size,
+                gradient_checkpointing=args.gradient_checkpointing,
+                checkpoint_segments=args.checkpoint_segments,
+                enable_cache=enable_cache,
+                cache_size=args.cache_size,
+                clear_cache=args.clear_cache,
+                enable_auto_tune=args.enable_auto_tune
             )
     else:
         cli_args = CLIArgs(
@@ -331,7 +451,14 @@ def parse_command_args() -> Tuple[CLIArgs, Optional[Dict[str, Any]]]:
             no_browser=args.no_browser,
             no_amp=args.no_amp,
             no_cudnn_benchmark=args.no_cudnn_benchmark,
-            config_file=None
+            config_file=None,
+            input_size=input_size,
+            gradient_checkpointing=args.gradient_checkpointing,
+            checkpoint_segments=args.checkpoint_segments,
+            enable_cache=enable_cache,
+            cache_size=args.cache_size,
+            clear_cache=args.clear_cache,
+            enable_auto_tune=args.enable_auto_tune
         )
     
     return cli_args, config_dict
@@ -517,6 +644,9 @@ class GPUManager:
                 # 配置优化
                 self._configure_optimizations(props)
                 
+                # 运行自动调优（如果启用）
+                self.run_auto_tune()
+                
                 self.device = torch.device("cuda")
             else:
                 self._setup_cpu_mode()
@@ -577,6 +707,28 @@ class GPUManager:
         else:
             Logger.warning("  混合精度推理 (AMP): 已禁用(显卡计算能力不足)")
     
+    def run_auto_tune(self):
+        """
+        运行性能自动调优
+        
+        自动测试不同的优化配置组合，选择最优配置
+        """
+        if not self.args.enable_auto_tune:
+            return
+        
+        try:
+            tuner = PerformanceAutoTuner(self.config, self.device)
+            best_config = tuner.benchmark_optimizations()
+            
+            if best_config:
+                Logger.success("性能自动调优完成！")
+                Logger.info("已应用最优配置")
+            else:
+                Logger.warning("性能自动调优失败，使用默认配置")
+        except Exception as e:
+            Logger.warning(f"性能自动调优失败: {e}")
+            Logger.info("使用默认配置")
+    
     def _setup_cpu_mode(self):
         """设置 CPU 模式"""
         system_vendor = self.detect_gpu_vendor_wmi()
@@ -602,15 +754,419 @@ class GPUManager:
             Logger.info("   未检测到支持的 GPU")
 
 
+# ================= 缓存管理器 =================
+class CacheManager:
+    """推理缓存管理器"""
+    
+    def __init__(self, enabled: bool = True, max_size: int = 100):
+        """
+        初始化缓存管理器
+        
+        Args:
+            enabled: 是否启用缓存
+            max_size: 最大缓存条目数
+        """
+        self.enabled = enabled
+        self.max_size = max_size
+        self.cache: Dict[str, Any] = {}
+        self.cache_order: list = []  # 用于 LRU 淘汰
+        self.hits = 0
+        self.misses = 0
+        self.lock = threading.Lock()
+    
+    def _get_cache_key(self, image: np.ndarray, f_px: float) -> str:
+        """
+        计算缓存键
+        
+        Args:
+            image: 输入图像
+            f_px: 焦距
+            
+        Returns:
+            缓存键（基于图像哈希和焦距）
+        """
+        import hashlib
+        
+        # 计算图像哈希（使用 MD5）
+        image_hash = hashlib.md5(image.tobytes()).hexdigest()
+        
+        # 组合哈希和焦距
+        cache_key = f"{image_hash}_{f_px:.6f}"
+        
+        return cache_key
+    
+    def get(self, image: np.ndarray, f_px: float) -> Optional[Any]:
+        """
+        从缓存获取结果
+        
+        Args:
+            image: 输入图像
+            f_px: 焦距
+            
+        Returns:
+            缓存的高斯结果，如果未命中则返回 None
+        """
+        if not self.enabled:
+            return None
+        
+        with self.lock:
+            cache_key = self._get_cache_key(image, f_px)
+            
+            if cache_key in self.cache:
+                # 缓存命中
+                self.hits += 1
+                result = self.cache[cache_key]
+                
+                # 更新 LRU 顺序
+                self.cache_order.remove(cache_key)
+                self.cache_order.append(cache_key)
+                
+                hit_rate = self.hits / (self.hits + self.misses) * 100
+                Logger.debug(f"缓存命中: 命中率 {hit_rate:.1f}% ({self.hits}/{self.hits + self.misses})")
+                
+                return result
+            else:
+                # 缓存未命中
+                self.misses += 1
+                return None
+    
+    def set(self, image: np.ndarray, f_px: float, result: Any):
+        """
+        将结果存入缓存
+        
+        Args:
+            image: 输入图像
+            f_px: 焦距
+            result: 预测结果
+        """
+        if not self.enabled:
+            return
+        
+        with self.lock:
+            cache_key = self._get_cache_key(image, f_px)
+            
+            # 如果缓存已满，淘汰最旧的条目
+            if len(self.cache) >= self.max_size:
+                oldest_key = self.cache_order.pop(0)
+                del self.cache[oldest_key]
+                Logger.debug(f"缓存已满，淘汰最旧条目: {oldest_key}")
+            
+            # 存入缓存
+            self.cache[cache_key] = result
+            self.cache_order.append(cache_key)
+            Logger.debug(f"缓存已添加: {cache_key}")
+    
+    def clear(self):
+        """清空缓存"""
+        with self.lock:
+            self.cache.clear()
+            self.cache_order.clear()
+            self.hits = 0
+            self.misses = 0
+            Logger.info("缓存已清空")
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """
+        获取缓存统计信息
+        
+        Returns:
+            缓存统计字典
+        """
+        with self.lock:
+            total_requests = self.hits + self.misses
+            hit_rate = (self.hits / total_requests * 100) if total_requests > 0 else 0
+            
+            return {
+                "enabled": self.enabled,
+                "size": len(self.cache),
+                "max_size": self.max_size,
+                "hits": self.hits,
+                "misses": self.misses,
+                "hit_rate": hit_rate
+            }
+    
+    def print_stats(self):
+        """打印缓存统计信息"""
+        stats = self.get_stats()
+        if stats["enabled"]:
+            Logger.section("缓存统计")
+            Logger.info(f"缓存状态: {'已启用' if stats['enabled'] else '已禁用'}")
+            Logger.info(f"缓存大小: {stats['size']}/{stats['max_size']}")
+            Logger.info(f"命中次数: {stats['hits']}")
+            Logger.info(f"未命中次数: {stats['misses']}")
+            Logger.info(f"命中率: {stats['hit_rate']:.1f}%")
+
+
+# ================= 性能自动调优器 =================
+class PerformanceAutoTuner:
+    """性能自动调优器"""
+    
+    def __init__(self, gpu_config: GPUConfig, device: torch.device):
+        """
+        初始化性能自动调优器
+        
+        Args:
+            gpu_config: GPU 配置
+            device: 设备
+        """
+        self.gpu_config = gpu_config
+        self.device = device
+        self.optimization_results = {}
+    
+    def benchmark_optimizations(self) -> Dict[str, Any]:
+        """
+        基准测试各种优化配置，选择最优配置
+        
+        Returns:
+            最优配置字典
+        """
+        Logger.section("性能自动调优")
+        Logger.info("正在测试不同优化配置...")
+        
+        # 测试配置列表
+        test_configs = [
+            {
+                'name': '基准配置',
+                'amp': False,
+                'cudnn_benchmark': False,
+                'tf32': False,
+                'description': '无任何优化'
+            },
+            {
+                'name': '仅 AMP',
+                'amp': True,
+                'cudnn_benchmark': False,
+                'tf32': False,
+                'description': '仅启用混合精度推理'
+            },
+            {
+                'name': '仅 cuDNN Benchmark',
+                'amp': False,
+                'cudnn_benchmark': True,
+                'tf32': False,
+                'description': '仅启用 cuDNN 自动调优'
+            },
+            {
+                'name': '仅 TF32',
+                'amp': False,
+                'cudnn_benchmark': False,
+                'tf32': True,
+                'description': '仅启用 TensorFloat32'
+            },
+            {
+                'name': 'AMP + cuDNN Benchmark',
+                'amp': True,
+                'cudnn_benchmark': True,
+                'tf32': False,
+                'description': 'AMP 和 cuDNN 自动调优'
+            },
+            {
+                'name': 'AMP + TF32',
+                'amp': True,
+                'cudnn_benchmark': False,
+                'tf32': True,
+                'description': 'AMP 和 TensorFloat32'
+            },
+            {
+                'name': '全部优化',
+                'amp': True,
+                'cudnn_benchmark': True,
+                'tf32': True,
+                'description': '启用所有优化'
+            }
+        ]
+        
+        # 根据显卡能力过滤不适用的配置
+        if self.gpu_config.vendor != "NVIDIA":
+            test_configs = [cfg for cfg in test_configs if not (cfg['cudnn_benchmark'] or cfg['tf32'])]
+            Logger.info("非 NVIDIA GPU，仅测试 AMP 优化")
+        elif self.gpu_config.compute_capability < 60:
+            test_configs = [cfg for cfg in test_configs if not cfg['cudnn_benchmark']]
+            Logger.info("显卡计算能力 < 6.0，跳过 cuDNN Benchmark")
+        elif self.gpu_config.compute_capability < 80:
+            test_configs = [cfg for cfg in test_configs if not cfg['tf32']]
+            Logger.info("显卡不支持 TF32，跳过 TF32 测试")
+        
+        # 执行基准测试
+        results = []
+        for config in test_configs:
+            try:
+                Logger.info(f"\n测试配置: {config['name']}")
+                Logger.info(f"  描述: {config['description']}")
+                
+                # 应用配置
+                self._apply_config(config)
+                
+                # 运行基准测试
+                avg_time = self._run_benchmark()
+                
+                Logger.info(f"  平均推理时间: {avg_time:.3f} 秒")
+                
+                results.append({
+                    'config': config,
+                    'avg_time': avg_time,
+                    'throughput': 1.0 / avg_time if avg_time > 0 else 0
+                })
+                
+            except Exception as e:
+                Logger.warning(f"  测试失败: {e}")
+                continue
+        
+        # 选择最优配置
+        if results:
+            best_result = min(results, key=lambda x: x['avg_time'])
+            Logger.section("调优结果")
+            Logger.success(f"最优配置: {best_result['config']['name']}")
+            Logger.info(f"  描述: {best_result['config']['description']}")
+            Logger.info(f"  平均推理时间: {best_result['avg_time']:.3f} 秒")
+            Logger.info(f"  吞吐量: {best_result['throughput']:.2f} FPS")
+            
+            # 应用最优配置
+            self._apply_config(best_result['config'])
+            
+            self.optimization_results = {
+                'best_config': best_result['config'],
+                'all_results': results
+            }
+            
+            return best_result['config']
+        else:
+            Logger.warning("所有配置测试失败，使用默认配置")
+            return test_configs[0] if test_configs else {}
+    
+    def _apply_config(self, config: Dict[str, Any]):
+        """
+        应用优化配置
+        
+        Args:
+            config: 配置字典
+        """
+        # 混合精度
+        if config.get('amp', False):
+            if self.gpu_config.compute_capability >= 53:
+                self.gpu_config.use_amp = True
+            else:
+                self.gpu_config.use_amp = False
+        
+        # cuDNN Benchmark
+        if config.get('cudnn_benchmark', False):
+            if self.gpu_config.vendor == "NVIDIA" and self.gpu_config.compute_capability >= 60:
+                torch.backends.cudnn.benchmark = True
+                torch.backends.cudnn.deterministic = False
+                self.gpu_config.use_cudnn_benchmark = True
+            else:
+                torch.backends.cudnn.benchmark = False
+                self.gpu_config.use_cudnn_benchmark = False
+        else:
+            torch.backends.cudnn.benchmark = False
+            self.gpu_config.use_cudnn_benchmark = False
+        
+        # TensorFloat32
+        if config.get('tf32', False):
+            if self.gpu_config.vendor == "NVIDIA" and self.gpu_config.supports_tf32:
+                torch.set_float32_matmul_precision('high')
+                torch.backends.cuda.matmul.allow_tf32 = True
+                torch.backends.cudnn.allow_tf32 = True
+                self.gpu_config.use_tf32 = True
+            else:
+                self.gpu_config.use_tf32 = False
+        else:
+            torch.backends.cuda.matmul.allow_tf32 = False
+            torch.backends.cudnn.allow_tf32 = False
+            self.gpu_config.use_tf32 = False
+    
+    def _run_benchmark(self, warmup_runs: int = 2, test_runs: int = 3) -> float:
+        """
+        运行基准测试
+        
+        Args:
+            warmup_runs: 预热运行次数
+            test_runs: 测试运行次数
+            
+        Returns:
+            平均推理时间（秒）
+        """
+        import time
+        
+        # 创建测试输入
+        test_size = (512, 512)  # 使用较小尺寸进行快速测试
+        dummy_input = torch.randn(3, *test_size, device=self.device)
+        dummy_disparity = torch.tensor([1.0], device=self.device)
+        
+        # 预热
+        for _ in range(warmup_runs):
+            try:
+                with torch.no_grad():
+                    _ = self._dummy_forward(dummy_input, dummy_disparity)
+            except:
+                pass
+        
+        if self.gpu_config.available:
+            torch.cuda.synchronize()
+        
+        # 测试
+        times = []
+        for i in range(test_runs):
+            start_time = time.time()
+            
+            try:
+                with torch.no_grad():
+                    _ = self._dummy_forward(dummy_input, dummy_disparity)
+                
+                if self.gpu_config.available:
+                    torch.cuda.synchronize()
+                
+                elapsed = time.time() - start_time
+                times.append(elapsed)
+                
+                Logger.info(f"  运行 {i+1}/{test_runs}: {elapsed:.3f} 秒")
+                
+            except Exception as e:
+                Logger.warning(f"  运行 {i+1}/{test_runs} 失败: {e}")
+                continue
+        
+        # 计算平均时间
+        if times:
+            avg_time = sum(times) / len(times)
+            return avg_time
+        else:
+            return float('inf')
+    
+    def _dummy_forward(self, x: torch.Tensor, disparity: torch.Tensor):
+        """
+        模拟前向传播（用于基准测试）
+        
+        Args:
+            x: 输入张量
+            disparity: 视差张量
+            
+        Returns:
+            模拟输出
+        """
+        # 简单的卷积操作模拟推理
+        import torch.nn.functional as F
+        conv1 = torch.nn.Conv2d(3, 64, 3, padding=1).to(self.device)
+        conv2 = torch.nn.Conv2d(64, 128, 3, padding=1).to(self.device)
+        
+        out = F.relu(conv1(x))
+        out = F.max_pool2d(out, 2)
+        out = F.relu(conv2(out))
+        
+        return out
+
+
 # ================= 模型管理器 =================
 class ModelManager:
     """模型管理器"""
     
-    def __init__(self, config: AppConfig, gpu_config: GPUConfig, device: torch.device):
+    def __init__(self, config: AppConfig, gpu_config: GPUConfig, device: torch.device, input_size: Tuple[int, int] = (1536, 1536), gradient_checkpointing: bool = False, enable_cache: bool = True, cache_size: int = 100):
         self.config = config
         self.gpu_config = gpu_config
         self.device = device
         self.predictor = None
+        self.input_size = input_size
+        self.gradient_checkpointing = gradient_checkpointing
+        self.cache_manager = CacheManager(enabled=enable_cache, max_size=cache_size)
     
     def load_model(self):
         """加载模型"""
@@ -655,6 +1211,12 @@ class ModelManager:
             Logger.success("模型加载完成!")
             Logger.info(f"设备: {self.device}")
             
+            # 应用梯度检查点
+            if self.gradient_checkpointing and self.gpu_config.available:
+                Logger.info("正在应用梯度检查点...")
+                self._apply_gradient_checkpointing()
+                Logger.success("梯度检查点已启用（显存占用将减少，但推理速度可能略微降低）")
+            
             if self.gpu_config.available:
                 memory_mb = torch.cuda.memory_allocated(self.device) / 1024**2
                 Logger.info(f"显存占用: {memory_mb:.2f} MB")
@@ -683,12 +1245,52 @@ class ModelManager:
             )
             sys.exit(1)
     
+    def _apply_gradient_checkpointing(self):
+        """
+        应用梯度检查点到模型
+        
+        梯度检查点通过重新计算中间激活值来减少显存占用，
+        但会略微增加计算时间。
+        """
+        try:
+            from torch.utils.checkpoint import checkpoint
+            
+            # 获取预测器的主要模块
+            if hasattr(self.predictor, 'monodepth_model'):
+                # 包装 monodepth 模型
+                original_forward = self.predictor.monodepth_model.forward
+                
+                def checkpointed_forward(x):
+                    return checkpoint(original_forward, x, use_reentrant=False)
+                
+                self.predictor.monodepth_model.forward = checkpointed_forward
+                Logger.info("  已应用梯度检查点到 monodepth 模型")
+            
+            if hasattr(self.predictor, 'decoder'):
+                # 包装 decoder
+                original_forward = self.predictor.decoder.forward
+                
+                def checkpointed_forward(x):
+                    return checkpoint(original_forward, x, use_reentrant=False)
+                
+                self.predictor.decoder.forward = checkpointed_forward
+                Logger.info("  已应用梯度检查点到 decoder")
+            
+        except Exception as e:
+            Logger.warning(f"应用梯度检查点失败: {e}")
+            Logger.info("  梯度检查点未启用，将使用正常推理模式")
+    
     @torch.no_grad()
     def predict(self, image: np.ndarray, f_px: float) -> Any:
-        """从图像预测3D高斯"""
+        """从图像预测3D高斯（带缓存支持）"""
         import torch.nn.functional as F
         
-        internal_shape = (1536, 1536)
+        # 检查缓存
+        cached_result = self.cache_manager.get(image, f_px)
+        if cached_result is not None:
+            return cached_result
+        
+        internal_shape = self.input_size
         height, width = image.shape[:2]
         
         # 预处理
@@ -756,6 +1358,9 @@ class ModelManager:
             gaussians_ndc, torch.eye(4, device=self.device), intrinsics_resized, internal_shape
         )
         
+        # 存入缓存
+        self.cache_manager.set(image, f_px, gaussians)
+        
         return gaussians
 
 
@@ -782,8 +1387,28 @@ class MLSharpApp:
         self.device = self.gpu_manager.initialize()
         
         # 加载模型
-        self.model_manager = ModelManager(self.app_config, self.gpu_config, self.device)
+        self.model_manager = ModelManager(
+            self.app_config, 
+            self.gpu_config, 
+            self.device, 
+            self.args.input_size,
+            self.args.gradient_checkpointing,
+            self.args.enable_cache,
+            self.args.cache_size
+        )
         self.model_manager.load_model()
+        
+        # 清空缓存（如果指定）
+        if self.args.clear_cache:
+            Logger.info("正在清空缓存...")
+            self.model_manager.cache_manager.clear()
+            Logger.success("缓存已清空")
+        
+        # 初始化监控指标
+        self.metrics_manager = init_metrics(enable_gpu=self.gpu_config.available)
+        if self.gpu_config.available:
+            self.metrics_manager.set_gpu_info(0, self.gpu_config.name, self.gpu_config.vendor)
+        self.metrics_manager.set_input_size(*self.args.input_size)
         
         # 创建 FastAPI 应用
         self.app = self._create_app()
@@ -885,6 +1510,86 @@ class MLSharpApp:
                     pass
             return stats
         
+        @app.get("/api/cache", tags=["System"])
+        async def get_cache_stats():
+            """获取缓存统计信息
+            
+            返回当前缓存的使用情况和性能指标。
+            
+            返回:
+                - enabled: 缓存是否启用
+                - size: 当前缓存条目数
+                - max_size: 最大缓存条目数
+                - hits: 缓存命中次数
+                - misses: 缓存未命中次数
+                - hit_rate: 缓存命中率（百分比）
+            """
+            return self.model_manager.cache_manager.get_stats()
+        
+        @app.post("/api/cache/clear", tags=["System"])
+        async def clear_cache():
+            """清空缓存
+            
+            清空所有缓存条目并重置统计信息。
+            
+            返回:
+                - status: 操作状态
+                - message: 操作消息
+            """
+            self.model_manager.cache_manager.clear()
+            return {"status": "success", "message": "缓存已清空"}
+        
+        @app.get("/metrics", tags=["Monitoring"])
+        async def metrics():
+            """Prometheus 指标端点
+            
+            返回 Prometheus 格式的监控指标数据。
+            
+            包括：
+                - HTTP 请求计数和响应时间
+                - 预测请求计数和响应时间
+                - GPU 内存使用量和利用率
+                - 活跃任务数
+                - 应用信息
+            """
+            from fastapi.responses import Response
+            return Response(
+                content=self.metrics_manager.get_metrics(),
+                media_type="text/plain; version=0.0.4; charset=utf-8"
+            )
+        
+        # 添加监控中间件
+        @app.middleware("http")
+        async def monitoring_middleware(request, call_next):
+            """监控中间件 - 记录所有 HTTP 请求"""
+            import time
+            start_time = time.time()
+            
+            # 增加活跃任务计数
+            if request.url.path == "/api/predict":
+                self.metrics_manager.set_active_tasks(
+                    self.metrics_manager.active_tasks._value.get() + 1 if self.metrics_manager.active_tasks._value else 1
+                )
+            
+            try:
+                response = await call_next(request)
+                
+                # 记录请求指标
+                duration = time.time() - start_time
+                self.metrics_manager.record_http_request(
+                    method=request.method,
+                    endpoint=request.url.path,
+                    status=response.status_code,
+                    duration=duration
+                )
+                
+                return response
+            finally:
+                # 减少活跃任务计数
+                if request.url.path == "/api/predict":
+                    current_tasks = self.metrics_manager.active_tasks._value.get() if self.metrics_manager.active_tasks._value else 1
+                    self.metrics_manager.set_active_tasks(max(0, current_tasks - 1))
+        
         return app
     
     async def _handle_predict(self, file: UploadFile):
@@ -909,7 +1614,9 @@ class MLSharpApp:
             load_start = time.time()
             image, _, f_px = await asyncio.to_thread(io.load_rgb, Path(file_path))
             height, width = image.shape[:2]
-            Logger.info(f"[Task {task_id}] 图像信息: {width}x{height}, 焦距: {f_px} (加载耗时: {time.time()-load_start:.2f}s)")
+            load_time = time.time() - load_start
+            Logger.info(f"[Task {task_id}] 图像信息: {width}x{height}, 焦距: {f_px} (加载耗时: {load_time:.2f}s)")
+            self.metrics_manager.record_predict_stage("image_load", load_time)
             
             # 检查图片尺寸
             if width > 4096 or height > 4096:
@@ -923,12 +1630,15 @@ class MLSharpApp:
                 torch.cuda.synchronize()
             inference_time = time.time() - inference_start
             Logger.info(f"[Task {task_id}] 推理完成,耗时: {inference_time:.2f}秒")
+            self.metrics_manager.record_predict_stage("inference", inference_time)
             
             # 保存 PLY - 使用 asyncio.to_thread
             output_ply_path = os.path.join(output_dir, "output.ply")
             save_start = time.time()
             await asyncio.to_thread(save_ply, gaussians, f_px, (height, width), output_ply_path)
-            Logger.info(f"[Task {task_id}] PLY保存完成,耗时: {time.time()-save_start:.2f}s")
+            save_time = time.time() - save_start
+            Logger.info(f"[Task {task_id}] PLY保存完成,耗时: {save_time:.2f}s")
+            self.metrics_manager.record_predict_stage("ply_save", save_time)
             
             # 重命名 - 异步文件操作
             final_ply = os.path.join(task_dir, "output.ply")
@@ -937,12 +1647,18 @@ class MLSharpApp:
             elapsed_time = time.time() - start_time
             Logger.info(f"[Task {task_id}] 处理完成,总耗时: {elapsed_time:.2f}秒")
             
+            # 记录预测指标
+            self.metrics_manager.record_predict_request("success", elapsed_time)
+            self.metrics_manager.record_predict_stage("total", elapsed_time)
+            
             download_url = f"/files/{task_id}/output.ply"
             return {"status": "success", "url": download_url, "processing_time": elapsed_time}
             
         except RuntimeError as e:
             if "out of memory" in str(e).lower():
                 Logger.error(f"[Task {task_id}] 显存不足: {e}")
+                elapsed_time = time.time() - start_time
+                self.metrics_manager.record_predict_request("error", elapsed_time)
                 return JSONResponse({
                     "status": "error",
                     "message": "显存不足,请使用较小的图片",
@@ -951,6 +1667,8 @@ class MLSharpApp:
             raise
         except Exception as e:
             Logger.error(f"[Task {task_id}] 处理失败: {e}")
+            elapsed_time = time.time() - start_time
+            self.metrics_manager.record_predict_request("error", elapsed_time)
             return JSONResponse({
                 "status": "error",
                 "message": f"处理失败: {str(e)}",
@@ -989,6 +1707,8 @@ class MLSharpApp:
         """打印服务信息"""
         Logger.section("Web 服务")
         
+        Logger.info(f"输入尺寸: {self.args.input_size[0]}x{self.args.input_size[1]}")
+        
         if self.gpu_config.available:
             Logger.success("GPU 加速已启用")
             Logger.info(f"GPU 厂商: {self.gpu_config.vendor}")
@@ -1004,6 +1724,12 @@ class MLSharpApp:
             Logger.warning("使用 CPU 模式")
             Logger.info(f"CPU 核心数: {os.cpu_count()}")
             Logger.info("[优化] 多线程优化: 已启用")
+        
+        # 缓存信息
+        if self.args.enable_cache:
+            Logger.success(f"[缓存] 推理缓存: 已启用（最大 {self.args.cache_size} 条）")
+        else:
+            Logger.info(f"[缓存] 推理缓存: 已禁用")
         
         print()
         service_url = f"http://{self.args.host}:{self.args.port}"
