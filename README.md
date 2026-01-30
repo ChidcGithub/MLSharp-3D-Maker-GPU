@@ -1267,17 +1267,7 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
    - 速率限制
 
 #### 中优先级
-1. **任务队列** - 异步任务处理
-   - Redis 队列支持
-   - 任务状态追踪
-   - 批量处理支持
-
-2. **缓存机制** - 提升响应速度
-   - Redis 缓存
-   - 结果缓存
-   - 预测结果缓存
-
-3. **Webhook 支持** - 异步通知
+1. **Webhook 支持** - 异步通知
    - 任务完成通知
    - 错误通知
    - 自定义回调
