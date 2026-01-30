@@ -37,7 +37,8 @@
 ## 项目概述
 
 MLSharp-3D-Maker 是一个基于 Apple SHaRP 模型的 3D 高斯泼溅（3D Gaussian Splatting）生成工具，可以从单张照片生成高质量的 3D 模型。
-
+### 此项目为**GPU特殊优化版**，推理速度可达到8s/p，相对于其他仓库版本提升**~900%**
+(测试环境：CPU：13th Gen Intel(R) Core(TM) i9-13900H，GPU:NVIDIA GeForce RTX 4060 Laptop GPU)
 ### 项目完成度
 
 | 模块     | 状态     | 完成度  | 说明                   |
