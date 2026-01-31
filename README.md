@@ -39,8 +39,8 @@
 ![Platform](https://img.shields.io/badge/Platform-Windows|Linux-lightgrey.svg)
 ![API](https://img.shields.io/badge/API-RESTful-blueviolet.svg)
 ![stars](https://img.shields.io/github/stars/chidcGithub/MLSharp-3D-Maker-GPU)
-</div>
 ![GitHub Release APK](https://img.shields.io/github/v/release/chidcGithub/MLSharp-3D-Maker-GPU?label=Download%20APK&color=blue)](https://github.com/chidcGithub/MLSharp-3D-Maker-GPU/releases/latest)
+</div>
 
 # 使用说明
 
