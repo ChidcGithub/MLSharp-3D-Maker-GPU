@@ -40,7 +40,7 @@
 [![Platform: Android](https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white)](https://www.android.com)
 [![Qualcomm Snapdragon](https://img.shields.io/badge/Supports-Qualcomm_Snapdragon_SDK-ED1C24?logo=qualcomm&logoColor=white)](https://developer.qualcomm.com/)
 [![stars](https://img.shields.io/github/stars/chidcGithub/MLSharp-3D-Maker-GPU)](https://github.com/chidcGithub/MLSharp-3D-Maker-GPU)
-[![GitHub Release](https://img.shields.io/github/v/release/chidcGithub/MLSharp-3D-Maker-GPU?label=Download%20APK&color=blue)](https://github.com/chidcGithub/MLSharp-3D-Maker-GPU/releases/latest)
+[GitHub Release (including pre-releases)](https://img.shields.io/github/v/release/chidcGithub/MLSharp-3D-Maker-GPU?include_prereleases&label=latest)](https://github.com/chidcGithub/MLSharp-3D-Maker-GPU/releases) https://img.shields.io/github/v/release/octocat/Spoon-Knife?include_prereleases&label=latest
 </div>
 
 # 使用说明
