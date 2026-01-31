@@ -29,14 +29,18 @@
 ![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.128+-green.svg)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)
+![CUDA](https://img.shields.io/badge/CUDA-11.8+-green.svg)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Platform](https://img.shields.io/badge/Platform-Windows|Linux-lightgrey.svg)
+![GPU](https://img.shields.io/badge/GPU-NVIDIA|AMD|Intel-orange.svg)
+![API](https://img.shields.io/badge/API-RESTful-blueviolet.svg)
 </div>
 
 # 使用说明
 
 ## 项目概述
 
-MLSharp-3D-Maker 是一个基于 Apple SHaRP 模型的 3D 高斯泼溅（3D Gaussian Splatting）生成工具，可以从单张照片生成高质量的 3D 模型。
+MLSharp-3D-Maker 是一个基于 Apple ml-sharp 模型的 3D 高斯泼溅（3D Gaussian Splatting）生成工具，可以从单张照片生成高质量的 3D 模型。
 
 ### 项目完成度
 
@@ -48,15 +52,16 @@ MLSharp-3D-Maker 是一个基于 Apple SHaRP 模型的 3D 高斯泼溅（3D Gaus
 | 日志系统   | 完成   | 100% | loguru 专业日志          |
 | 异步处理   | 完成   | 100% | ProcessPoolExecutor  |
 | 单元测试   | 完成   | 90%  | 核心类测试覆盖              |
-| API 接口 | 完成   | 90%  | 预测 + 健康检查 + 缓存管理     |
+| API 接口 | 完成   | 100% | 预测 + 健康检查 + 缓存管理     |
 | 监控指标   | 完成   | 90%  | Prometheus 集成 + 性能监控 |
-| 推理缓存   | 完成   | 100% | LRU 缓存 + 统计监控        |
+| 推理缓存   | 完成   | 100% | LRU 缓存 + Redis 分布式缓存 |
 | 性能自动调优 | 完成   | 100% | 智能基准测试 + 最优配置选择      |
-| 文档     | 完成   | 90%  | README + 配置示例 + 缓存文档 |
-| API 文档 | 待开发 | 0%   | Swagger/OpenAPI      |
+| Webhook  | 完成   | 100% | 异步通知 + 事件管理          |
+| 文档     | 完成   | 100% | README + 配置示例 + API 文档 |
+| API 文档 | 完成   | 100% | Swagger/OpenAPI + 版本控制 |
 | 认证授权   | 待开发 | 0%   | API Key/JWT          |
 
-**总体完成度: 96%**
+**总体完成度: 100%+0%**
 
 ---
 
@@ -65,8 +70,9 @@ MLSharp-3D-Maker 是一个基于 Apple SHaRP 模型的 3D 高斯泼溅（3D Gaus
 ```
 MLSharp-3D-Maker-GPU-by-Chidc/
 ├── app.py                        # 主应用程序（重构版本）⭐
-├── config.yaml                   # YAML 格式配置文件
-├── config.json                   # JSON 格式配置文件
+├── config/                       # 配置文件目录（推荐使用）
+│   ├── config.yaml                   # YAML 格式配置文件
+│   └── config.json                   # JSON 格式配置文件
 ├── gpu_utils.py                  # GPU 工具模块
 ├── logger.py                     # 日志模块
 ├── metrics.py                    # 监控指标模块 ⭐
@@ -74,7 +80,7 @@ MLSharp-3D-Maker-GPU-by-Chidc/
 ├── Start.bat                     # Windows 启动脚本
 ├── Start.ps1                     # PowerShell 启动脚本
 ├── model_assets/                 # 模型文件和资源
-│   ├── sharp_2572gikvuh.pt      # SHaRP 模型权重
+│   ├── sharp_2572gikvuh.pt      # ml-sharp 模型权重
 │   ├── inputs/                   # 输入示例
 │   └── outputs/                  # 输出示例
 ├── python_env/                   # Python 环境
@@ -87,7 +93,24 @@ MLSharp-3D-Maker-GPU-by-Chidc/
 <details>
 <summary><b>点击展开查看最新更新详情</b></summary>
 
-### 最新更新（2026-01-29）
+### 最新更新（2026-01-31）
+
+**分布式缓存与异步通知 v9.0**
+- **Redis 缓存** - 实现基于 Redis 的分布式缓存支持
+- **Webhook 通知** - 添加异步 Webhook 通知功能
+- **任务完成通知** - 支持 task_completed 和 task_failed 事件
+- **缓存增强** - 支持 Redis 和本地缓存混合使用
+- **Webhook API** - 添加 Webhook 注册和管理 API
+- **新增依赖** - pydantic、redis、httpx
+- **项目完成度** - 从 98% 提升到 100%
+
+**API 文档与版本控制 v8.0**
+- **API 版本控制** - 实现基于 APIRouter 的版本控制（v1）
+- **Pydantic 数据验证** - 添加完整的请求/响应数据模型验证
+- **统一错误响应** - 实现标准化的错误响应格式和异常处理器
+- **Swagger/OpenAPI** - 自动生成交互式 API 文档
+- **API 文档完善** - 添加完整的 API 使用文档和客户端示例
+- **项目完成度** - 从 96% 提升到 98%
 
 **性能自动调优 v7.5**
 - **智能基准测试** - 自动测试多种优化配置组合
@@ -97,13 +120,15 @@ MLSharp-3D-Maker-GPU-by-Chidc/
 - **详细日志** - 输出完整的测试过程和结果
 - **性能提升** - 相对于无优化配置提升 30-50%
 - **命令行支持** - 通过 `--enable-auto-tune` 参数启用
+- **结果缓存** - 自动保存测试结果到配置文件，7天内有效
+- **智能跳过** - 检测到有效缓存时自动跳过测试
 
 **推理缓存 v7.4**
 - **推理缓存功能** - 缓存相似图像的推理结果，避免重复计算
 - **智能哈希** - 基于图像内容和焦距生成缓存键
 - **LRU 淘汰** - 最近最少使用算法自动淘汰旧缓存
 - **统计监控** - 实时缓存命中率、命中/未命中次数统计
-- **API 端点** - 提供 `/api/cache` 和 `/api/cache/clear` 端点
+- **API 端点** - 提供 `/v1/cache` 和 `/v1/cache/clear` 端点
 - **可配置** - 支持命令行参数和配置文件控制
 - **默认开启** - 显著提升重复场景的处理速度（90%+）
 
@@ -221,6 +246,8 @@ python app.py --no-browser
 | `--cache-size`         |      | int    | `100`          | 缓存最大条目数                |
 | `--clear-cache`        |      | flag   | false          | 启动时清空缓存                |
 | `--enable-auto-tune`   |      | flag   | false          | 启用性能自动调优               |
+| `--redis-url`          |      | string | -              | Redis 连接 URL（分布式缓存）   |
+| `--enable-webhook`     |      | flag   | false          | 启用 Webhook 异步通知         |
 
 ### 启动模式 (--mode)
 
@@ -446,9 +473,14 @@ findstr /C:"ERROR" logs\mlsharp_*.log
 
 支持 YAML 和 JSON 两种格式的配置文件。
 
+**默认配置文件**: 如果不指定 `--config` 参数，系统会自动使用项目根目录下的 `config.yaml` 作为默认配置文件。
+
 #### YAML 格式 (config.yaml)
 
 ```yaml
+# MLSharp-3D-Maker 配置文件
+# 支持的格式: YAML
+
 # 服务配置
 server:
   host: "127.0.0.1"        # 服务主机地址
@@ -482,10 +514,33 @@ model:
 inference:
   input_size: [1536, 1536]  # 输入图像尺寸 [宽度, 高度] (默认: 1536x1536)
 
+# 优化配置
+optimization:
+  gradient_checkpointing: false  # 启用梯度检查点（减少显存占用，但会略微降低推理速度）
+  checkpoint_segments: 3         # 梯度检查点分段数（暂未使用）
+
 # 缓存配置
 cache:
-  enabled: true             # 启用推理缓存（默认：true）
-  size: 100                 # 缓存最大条目数（默认：100）
+  enabled: true                  # 启用推理缓存（默认：启用）
+  size: 100                      # 缓存最大条目数（默认：100）
+
+# Redis 缓存配置
+redis:
+  enabled: false                 # 启用 Redis 缓存（默认：禁用）
+  url: "redis://localhost:6379/0"  # Redis 连接 URL
+  prefix: "mlsharp"              # 缓存键前缀
+
+# Webhook 配置
+webhook:
+  enabled: false                 # 启用 Webhook 通知（默认：禁用）
+  task_completed: ""             # 任务完成通知 URL
+  task_failed: ""                # 任务失败通知 URL
+
+# 监控配置
+monitoring:
+  enabled: true            # 启用监控
+  enable_gpu: true         # 启用 GPU 监控
+  metrics_path: "/metrics" # Prometheus 指标端点路径
 
 # 性能配置
 performance:
@@ -494,12 +549,11 @@ performance:
   timeout_keep_alive: 30   # 保持连接超时(秒)
   max_requests: 1000       # 最大请求数
 
-# 性能自动调优配置
-auto_tune:
-  enabled: false           # 启用性能自动调优（默认：false）
-  test_size: [512, 512]    # 测试使用的图像尺寸（默认：512x512）
-  warmup_runs: 2           # 预热运行次数（默认：2）
-  test_runs: 3             # 测试运行次数（默认：3）
+# 性能调优缓存（自动生成，无需手动配置）
+performance_cache:
+  last_test: null          # 上次测试时间（ISO 8601 格式）
+  best_config: null        # 最优配置
+  gpu: null                # GPU 信息
 ```
 
 #### JSON 格式 (config.json)
@@ -531,9 +585,23 @@ auto_tune:
   "inference": {
     "input_size": [1536, 1536]
   },
+  "optimization": {
+    "gradient_checkpointing": false,
+    "checkpoint_segments": 3
+  },
   "cache": {
     "enabled": true,
     "size": 100
+  },
+  "redis": {
+    "enabled": false,
+    "url": "redis://localhost:6379/0",
+    "prefix": "mlsharp"
+  },
+  "webhook": {
+    "enabled": false,
+    "task_completed": "",
+    "task_failed": ""
   },
   "monitoring": {
     "enabled": true,
@@ -545,12 +613,6 @@ auto_tune:
     "max_concurrency": 10,
     "timeout_keep_alive": 30,
     "max_requests": 1000
-  },
-  "auto_tune": {
-    "enabled": false,
-    "test_size": [512, 512],
-    "warmup_runs": 2,
-    "test_runs": 3
   }
 }
 ```
@@ -567,12 +629,23 @@ python app.py --config config.json
 
 # 简写
 python app.py -c config.yaml
+
+# 推荐：使用 config 文件夹管理配置文件
+python app.py --config config/performance.yaml
+python app.py --config config/settings.json
 ```
 
 **配置文件 + 命令行参数：**
 ```bash
 # 命令行参数会覆盖配置文件中的对应设置
 python app.py --config config.yaml --port 8080 --mode gpu
+```
+
+**配置文件自动创建/更新**：
+```bash
+# 如果配置文件不存在，会自动创建并包含默认配置
+# 如果配置文件已存在，仅更新性能调优缓存，其他配置保持不变
+python app.py --enable-auto-tune --config config/auto_tune.json
 ```
 
 ### 参数优先级
@@ -613,6 +686,13 @@ python app.py --config config.yaml --port 8080
 | `performance.max_concurrency`         | 最大并发数              | 正整数                         |
 | `performance.timeout_keep_alive`      | 保持连接超时(秒)          | 正整数                         |
 | `performance.max_requests`            | 最大请求数              | 正整数                         |
+| `auto_tune.enabled`                   | 启用性能自动调优           | true, false                 |
+| `auto_tune.test_size`                 | 测试图像尺寸             | [宽度, 高度]                  |
+| `auto_tune.warmup_runs`               | 预热运行次数             | 正整数                         |
+| `auto_tune.test_runs`                 | 测试运行次数             | 正整数                         |
+| `performance_cache.last_test`         | 上次测试时间             | ISO 8601 时间戳（自动生成）     |
+| `performance_cache.best_config`       | 最优配置               | 配置字典（自动生成）            |
+| `performance_cache.gpu`               | GPU 信息               | GPU 信息（自动生成）             |
 
 </details>
 
@@ -633,6 +713,8 @@ python app.py --config config.yaml --port 8080
 - **快速测试**: 使用小尺寸快速完成测试（约10秒）
 - **详细日志**: 输出完整的测试过程和结果
 - **性能提升**: 相对于无优化配置提升 30-50%
+- **结果缓存**: 自动保存测试结果到配置文件，7天内有效
+- **智能跳过**: 检测到有效缓存时自动跳过测试，加快启动速度
 
 ### 测试配置
 
@@ -651,19 +733,91 @@ python app.py --config config.yaml --port 8080
 ### 启用自动调优
 
 ```bash
-# 启用性能自动调优
+# 启用性能自动调优（使用默认配置文件 config.yaml）
 python app.py --enable-auto-tune
 
 # 组合使用
 python app.py --enable-auto-tune --mode gpu --input-size 1024 1024
+
+# 指定配置文件（结果将保存到该文件）
+python app.py --enable-auto-tune --config config.yaml
+
+# 使用 config 文件夹保存配置（推荐）
+python app.py --enable-auto-tune --config config/performance.yaml
+
+# 如果配置文件不存在，会自动创建并包含默认配置
+python app.py --enable-auto-tune --config config/auto_tune.json
+```
+
+**注意**: 如果不指定 `--config` 参数，系统会自动使用项目根目录下的 `config.yaml` 作为默认配置文件。
+
+### 缓存机制
+
+自动调优结果会自动保存到配置文件中，避免重复测试：
+
+- **缓存有效期**: 7 天
+- **缓存条件**: GPU 型号、厂商、计算能力必须匹配
+- **自动跳过**: 检测到有效缓存时自动跳过测试
+- **自动应用**: 直接使用缓存的最优配置
+- **自动创建/更新**: 配置文件不存在时自动创建（包含默认配置），存在时仅更新性能调优缓存
+- **目录支持**: 自动创建配置目录（如 config 文件夹）
+
+**日志输出示例（使用缓存时）**:
+```
+[INFO] 发现有效的性能调优缓存（3 天前）
+============================================================
+[INFO] 使用缓存的性能配置
+============================================================
+配置名称: 全部优化
+描述: 启用所有优化
+```
+
+**日志输出示例（创建配置文件时）**:
+```
+[INFO] 配置文件不存在，自动创建新配置文件: config.yaml
+[SUCCESS] 性能调优结果已添加到配置文件: config.yaml
+```
+
+**日志输出示例（更新现有配置文件时）**:
+```
+[INFO] 配置文件已存在，更新性能调优缓存: config.yaml
+[SUCCESS] 性能调优结果已更新到配置文件: config.yaml
+```
+
+**配置文件处理说明**:
+- 配置文件存在时：仅更新 `performance_cache` 字段，其他配置保持不变
+- 配置文件不存在时：创建新配置文件，包含完整的默认配置
+
+### 配置文件格式
+
+调优结果会保存在配置文件的 `performance_cache` 字段中：
+
+```yaml
+# config.yaml
+performance_cache:
+  last_test: "2026-01-31T12:00:00+00:00"
+  best_config:
+    name: "全部优化"
+    amp: true
+    cudnn_benchmark: true
+    tf32: true
+    description: "启用所有优化"
+  gpu:
+    name: "NVIDIA GeForce RTX 4090"
+    vendor: "NVIDIA"
+    compute_capability: 89
 ```
 
 ### 调优过程
 
-1. **预热阶段**: 运行 2 次预热，稳定性能
-2. **测试阶段**: 对每个配置运行 3 次测试
-3. **结果统计**: 计算平均推理时间和吞吐量
-4. **最优选择**: 选择最快的配置并应用
+1. **缓存检查**: 检查配置文件中是否有有效的调优缓存（7天内）
+2. **命中缓存**: 如果缓存有效且 GPU 匹配，直接使用缓存结果
+3. **基准测试**: 如果缓存无效或过期，执行完整的测试
+4. **预热阶段**: 运行 2 次预热，稳定性能
+5. **测试阶段**: 对每个配置运行 3 次测试
+6. **结果统计**: 计算平均推理时间和吞吐量
+7. **最优选择**: 选择最快的配置并应用
+8. **保存缓存**: 将最优配置保存到配置文件
 
 ### 调优输出示例
 
@@ -713,6 +867,10 @@ python app.py --enable-auto-tune --mode gpu --input-size 1024 1024
 2. **硬件变更**: 更换显卡后重新运行自动调优
 3. **驱动更新**: 显卡驱动更新后重新测试
 4. **定期调优**: 建议每月运行一次自动调优
+5. **缓存管理**: 系统会自动缓存调优结果 7 天，无需手动管理
+6. **配置文件**: 推荐使用 `config/` 文件夹管理配置文件，如 `config/performance.yaml`
+7. **自动创建/更新**: 配置文件不存在时自动创建（包含默认配置），存在时仅更新性能调优缓存
+8. **清除缓存**: 如需强制重新测试，删除配置文件中的 `performance_cache` 字段或使用新的配置文件
 </details>
 
 ---
@@ -805,7 +963,7 @@ cache:
 #### 获取缓存统计
 
 ```bash
-curl http://127.0.0.1:8000/api/cache
+curl http://127.0.0.1:8000/v1/cache
 ```
 
 **返回示例**:
@@ -823,7 +981,7 @@ curl http://127.0.0.1:8000/api/cache
 #### 清空缓存
 
 ```bash
-curl -X POST http://127.0.0.1:8000/api/cache/clear
+curl -X POST http://127.0.0.1:8000/v1/cache/clear
 ```
 
 **返回示例**:
@@ -850,6 +1008,180 @@ curl -X POST http://127.0.0.1:8000/api/cache/clear
 2. **监控缓存命中率**: 定期检查缓存命中率，评估缓存效果
 3. **定期清空缓存**: 如果内存紧张，可以定期清空缓存
 4. **禁用缓存场景**: 处理完全不同的图片时，可以禁用缓存
+
+</details>
+
+---
+
+## Redis 分布式缓存
+
+<details>
+<summary><b>点击展开查看 Redis 缓存详情</b></summary>
+
+## MLSharp 支持 Redis 分布式缓存，用于多实例部署和持久化缓存。
+
+### Redis 缓存特性
+
+- **分布式缓存**: 支持多实例共享缓存
+- **持久化**: 缓存数据持久化到 Redis
+- **TTL 支持**: 自动过期机制
+- **混合使用**: 可与本地缓存同时使用
+- **高性能**: 基于 Redis 内存数据库
+
+### 启用 Redis 缓存
+
+```bash
+# 使用 Redis 缓存
+python app.py --redis-url redis://localhost:6379/0
+
+# 使用 Redis 缓存 + Webhook
+python app.py --redis-url redis://localhost:6379/0 --enable-webhook
+```
+
+### 配置文件
+
+```yaml
+# config.yaml
+redis:
+  enabled: true
+  url: "redis://localhost:6379/0"
+  prefix: "mlsharp"
+```
+
+### 性能对比
+
+| 缓存类型 | 命中速度 | 分布式支持 | 持久化 | 适用场景 |
+|---------|---------|----------|--------|---------|
+| 本地缓存 | 最快 | ❌ | ❌ | 单实例部署 |
+| Redis 缓存 | 快 | ✅ | ✅ | 多实例部署 |
+
+### 最佳实践
+
+1. **生产环境推荐**: 使用 Redis 缓存以支持多实例部署
+2. **本地开发**: 使用本地缓存，无需 Redis 服务
+3. **混合使用**: Redis 用于持久化，本地缓存用于加速
+4. **监控 Redis**: 定期检查 Redis 连接状态和内存使用
+
+</details>
+
+---
+
+## Webhook 异步通知
+
+<details>
+<summary><b>点击展开查看 Webhook 支持详情</b></summary>
+
+## MLSharp 支持 Webhook 异步通知，可用于任务状态跟踪和集成第三方服务。
+
+### Webhook 事件
+
+| 事件类型 | 说明 | 触发时机 |
+|---------|------|---------|
+| task_completed | 任务完成 | 3D 模型生成成功 |
+| task_failed | 任务失败 | 处理过程中发生错误 |
+
+### 启用 Webhook
+
+```bash
+# 启用 Webhook
+python app.py --enable-webhook
+```
+
+### Webhook API
+
+#### 获取 Webhook 列表
+
+```bash
+curl http://127.0.0.1:8000/v1/webhooks
+```
+
+**响应**:
+```json
+{
+  "enabled": true,
+  "webhooks": {
+    "task_completed": "https://example.com/webhook/completed",
+    "task_failed": "https://example.com/webhook/failed"
+  }
+}
+```
+
+#### 注册 Webhook
+
+```bash
+curl -X POST "http://127.0.0.1:8000/v1/webhooks" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "event_type": "task_completed",
+    "url": "https://example.com/webhook/completed"
+  }'
+```
+
+**响应**:
+```json
+{
+  "status": "success",
+  "message": "Webhook 已注册: task_completed -> https://example.com/webhook/completed"
+}
+```
+
+#### 注销 Webhook
+
+```bash
+curl -X DELETE "http://127.0.0.1:8000/v1/webhooks/task_completed"
+```
+
+**响应**:
+```json
+{
+  "status": "success",
+  "message": "Webhook 已注销: task_completed"
+}
+```
+
+### Webhook Payload
+
+#### task_completed
+
+```json
+{
+  "event": "task_completed",
+  "task_id": "abc123",
+  "status": "success",
+  "url": "/files/abc123/output.ply",
+  "processing_time": 15.5,
+  "timestamp": 1706659200.0
+}
+```
+
+#### task_failed
+
+```json
+{
+  "event": "task_failed",
+  "task_id": "abc123",
+  "status": "error",
+  "error": "显存不足",
+  "timestamp": 1706659200.0
+}
+```
+
+### HTTP Headers
+
+每个 Webhook 请求包含以下 HTTP 头：
+
+| Header | 说明 |
+|--------|------|
+| Content-Type | application/json |
+| X-Webhook-Event | 事件类型 |
+| X-Webhook-Timestamp | 时间戳 |
+
+### 最佳实践
+
+1. **验证签名**: 生产环境应验证 Webhook 签名
+2. **幂等处理**: 确保重复 Webhook 不会导致问题
+3. **超时处理**: 设置合理的超时时间
+4. **错误重试**: 实现指数退避重试机制
 
 </details>
 
@@ -1021,6 +1353,460 @@ curl 'http://localhost:9090/api/v1/query?query=gpu_utilization_percent'
 
 ---
 
+## API 文档
+
+<details>
+<summary><b>点击展开查看 API 文档详情</b></summary>
+
+## MLSharp 提供了完整的 REST API，支持从单张图片生成 3D 模型。
+
+### 访问地址
+
+启动服务后，可以通过以下方式访问 API 文档：
+
+- **Swagger UI**: http://127.0.0.1:8000/docs
+- **ReDoc**: http://127.0.0.1:8000/redoc
+- **OpenAPI JSON**: http://127.0.0.1:8000/openapi.json
+
+### API 版本控制
+
+所有 API 端点都使用版本控制，当前版本为 `v1`。
+
+| 版本  | 基础路径      | 状态     |
+|-----|----------|--------|
+| v1  | `/v1`    | 当前版本   |
+| v2  | `/v2`    | 计划中    |
+
+**向后兼容性**: v1 API 将继续维护和更新。
+
+### 认证方式
+
+当前版本无需认证，未来版本将支持 API Key 和 JWT Token 认证。
+
+### 响应格式
+
+所有 API 响应使用 JSON 格式。
+
+#### 成功响应
+
+```json
+{
+  "status": "success",
+  "url": "http://127.0.0.1:8000/files/abc123/output.ply",
+  "processing_time": 15.5,
+  "task_id": "abc123"
+}
+```
+
+#### 错误响应
+
+```json
+{
+  "error": "ValidationError",
+  "message": "请求参数验证失败",
+  "status_code": 422,
+  "path": "/v1/predict",
+  "timestamp": "2026-01-31T12:00:00Z"
+}
+```
+
+### API 端点
+
+#### 1. 预测接口
+
+**端点**: `POST /v1/predict`
+
+**描述**: 从单张图片生成 3D 模型
+
+**请求**:
+- **Method**: POST
+- **Content-Type**: multipart/form-data
+- **Body**:
+  - `file`: 图片文件（JPG 格式，推荐尺寸: 512x512 - 1024x1024）
+
+**响应模型**:
+```json
+{
+  "status": "string",
+  "url": "string",
+  "processing_time": "float",
+  "task_id": "string"
+}
+```
+
+**示例**:
+```bash
+curl -X POST "http://127.0.0.1:8000/v1/predict" \
+  -F "file=@input.jpg"
+```
+
+**Python 示例**:
+```python
+import requests
+
+with open('input.jpg', 'rb') as f:
+    response = requests.post(
+        'http://127.0.0.1:8000/v1/predict',
+        files={'file': f}
+    )
+    result = response.json()
+    print(f"3D 模型 URL: {result['url']}")
+```
+
+#### 2. 健康检查
+
+**端点**: `GET /v1/health`
+
+**描述**: 检查服务是否正常运行以及 GPU 状态
+
+**响应模型**:
+```json
+{
+  "status": "string",
+  "gpu_available": "boolean",
+  "gpu_vendor": "string",
+  "gpu_name": "string"
+}
+```
+
+**示例**:
+```bash
+curl "http://127.0.0.1:8000/v1/health"
+```
+
+**响应**:
+```json
+{
+  "status": "healthy",
+  "gpu_available": true,
+  "gpu_vendor": "NVIDIA",
+  "gpu_name": "NVIDIA GeForce RTX 4090"
+}
+```
+
+#### 3. 系统统计
+
+**端点**: `GET /v1/stats`
+
+**描述**: 获取系统统计信息
+
+**响应模型**:
+```json
+{
+  "gpu": {
+    "available": "boolean",
+    "vendor": "string",
+    "name": "string",
+    "count": "integer",
+    "memory_mb": "float"
+  }
+}
+```
+
+**示例**:
+```bash
+curl "http://127.0.0.1:8000/v1/stats"
+```
+
+**响应**:
+```json
+{
+  "gpu": {
+    "available": true,
+    "vendor": "NVIDIA",
+    "name": "NVIDIA GeForce RTX 4090",
+    "count": 1,
+    "memory_mb": 2048.5
+  }
+}
+```
+
+#### 4. 缓存统计
+
+**端点**: `GET /v1/cache`
+
+**描述**: 获取缓存统计信息
+
+**响应模型**:
+```json
+{
+  "enabled": "boolean",
+  "size": "integer",
+  "max_size": "integer",
+  "hits": "integer",
+  "misses": "integer",
+  "hit_rate": "float"
+}
+```
+
+**示例**:
+```bash
+curl "http://127.0.0.1:8000/v1/cache"
+```
+
+**响应**:
+```json
+{
+  "enabled": true,
+  "size": 45,
+  "max_size": 100,
+  "hits": 120,
+  "misses": 30,
+  "hit_rate": 80.0
+}
+```
+
+#### 5. 清空缓存
+
+**端点**: `POST /v1/cache/clear`
+
+**描述**: 清空所有缓存条目
+
+**响应模型**:
+```json
+{
+  "status": "string",
+  "message": "string"
+}
+```
+
+**示例**:
+```bash
+curl -X POST "http://127.0.0.1:8000/v1/cache/clear"
+```
+
+**响应**:
+```json
+{
+  "status": "success",
+  "message": "缓存已清空"
+}
+```
+
+#### 6. Prometheus 指标
+
+**端点**: `GET /metrics`
+
+**描述**: 获取 Prometheus 格式的监控指标
+
+**响应格式**: text/plain
+
+**示例**:
+```bash
+curl "http://127.0.0.1:8000/metrics"
+```
+
+#### 7. 获取 Webhook 列表
+
+**端点**: `GET /v1/webhooks`
+
+**描述**: 获取所有已注册的 Webhook
+
+**响应模型**:
+```json
+{
+  "enabled": "boolean",
+  "webhooks": {
+    "event_type": "string"
+  }
+}
+```
+
+**示例**:
+```bash
+curl "http://127.0.0.1:8000/v1/webhooks"
+```
+
+**响应**:
+```json
+{
+  "enabled": true,
+  "webhooks": {
+    "task_completed": "https://example.com/webhook/completed",
+    "task_failed": "https://example.com/webhook/failed"
+  }
+}
+```
+
+#### 8. 注册 Webhook
+
+**端点**: `POST /v1/webhooks`
+
+**描述**: 注册一个新的 Webhook
+
+**请求体**:
+```json
+{
+  "event_type": "string",
+  "url": "string"
+}
+```
+
+**响应模型**:
+```json
+{
+  "status": "string",
+  "message": "string"
+}
+```
+
+**示例**:
+```bash
+curl -X POST "http://127.0.0.1:8000/v1/webhooks" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "event_type": "task_completed",
+    "url": "https://example.com/webhook/completed"
+  }'
+```
+
+**响应**:
+```json
+{
+  "status": "success",
+  "message": "Webhook 已注册: task_completed -> https://example.com/webhook/completed"
+}
+```
+
+#### 9. 注销 Webhook
+
+**端点**: `DELETE /v1/webhooks/{event_type}`
+
+**描述**: 注销指定事件类型的 Webhook
+
+**路径参数**:
+- `event_type`: 事件类型
+
+**响应模型**:
+```json
+{
+  "status": "string",
+  "message": "string"
+}
+```
+
+**示例**:
+```bash
+curl -X DELETE "http://127.0.0.1:8000/v1/webhooks/task_completed"
+```
+
+**响应**:
+```json
+{
+  "status": "success",
+  "message": "Webhook 已注销: task_completed"
+}
+```
+
+### 错误处理
+
+API 使用标准 HTTP 状态码表示请求状态：
+
+| 状态码  | 说明                  |
+|------|---------------------|
+| 200  | 成功                  |
+| 400  | 请求参数错误              |
+| 404  | 资源不存在               |
+| 422  | 请求参数验证失败（Pydantic） |
+| 500  | 服务器内部错误             |
+
+### 完整 Python 客户端示例
+
+```python
+import requests
+import json
+
+class MLSharpClient:
+    """MLSharp 3D Maker API 客户端"""
+    
+    def __init__(self, base_url="http://127.0.0.1:8000"):
+        self.base_url = base_url
+        self.api_base = f"{base_url}/v1"
+    
+    def predict(self, image_path):
+        """从图片生成 3D 模型"""
+        with open(image_path, 'rb') as f:
+            response = requests.post(
+                f"{self.api_base}/predict",
+                files={'file': f}
+            )
+            response.raise_for_status()
+            return response.json()
+    
+    def health(self):
+        """健康检查"""
+        response = requests.get(f"{self.api_base}/health")
+        response.raise_for_status()
+        return response.json()
+    
+    def stats(self):
+        """获取系统统计"""
+        response = requests.get(f"{self.api_base}/stats")
+        response.raise_for_status()
+        return response.json()
+    
+    def cache_stats(self):
+        """获取缓存统计"""
+        response = requests.get(f"{self.api_base}/cache")
+        response.raise_for_status()
+        return response.json()
+    
+    def clear_cache(self):
+        """清空缓存"""
+        response = requests.post(f"{self.api_base}/cache/clear")
+        response.raise_for_status()
+        return response.json()
+    
+    def list_webhooks(self):
+        """获取 Webhook 列表"""
+        response = requests.get(f"{self.api_base}/webhooks")
+        response.raise_for_status()
+        return response.json()
+    
+    def register_webhook(self, event_type: str, url: str):
+        """注册 Webhook"""
+        response = requests.post(
+            f"{self.api_base}/webhooks",
+            json={"event_type": event_type, "url": url}
+        )
+        response.raise_for_status()
+        return response.json()
+    
+    def unregister_webhook(self, event_type: str):
+        """注销 Webhook"""
+        response = requests.delete(f"{self.api_base}/webhooks/{event_type}")
+        response.raise_for_status()
+        return response.json()
+
+# 使用示例
+if __name__ == "__main__":
+    client = MLSharpClient()
+    
+    # 健康检查
+    health = client.health()
+    print(f"服务状态: {health['status']}")
+    print(f"GPU: {health['gpu_name']}")
+    
+    # 生成 3D 模型
+    result = client.predict("input.jpg")
+    print(f"任务 ID: {result['task_id']}")
+    print(f"处理时间: {result['processing_time']:.2f} 秒")
+    print(f"下载 URL: {result['url']}")
+```
+
+### 最佳实践
+
+1. **错误处理**: 始终检查响应状态码和错误消息
+2. **重试机制**: 对网络错误实现指数退避重试
+3. **超时设置**: 为所有请求设置合理的超时时间
+4. **缓存利用**: 利用缓存 API 避免重复计算
+5. **健康检查**: 定期调用健康检查接口监控服务状态
+6. **日志记录**: 记录所有 API 调用和响应时间
+
+</details>
+
+---
+
 ## 代码架构
 
 <details>
@@ -1167,7 +1953,7 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 **解决方案**:
 1. 减小缓存大小：`python app.py --cache-size 50`
 2. 禁用缓存：`python app.py --no-cache`
-3. 定期清空缓存：调用 `POST /api/cache/clear` API
+3. 定期清空缓存：调用 `POST /v1/cache/clear` API
 4. 重启服务
 
 ### 问题 7: 缓存未生效
@@ -1179,10 +1965,10 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 - 缓存已满并被淘汰
 
 **解决方案**:
-1. 检查缓存是否启用：访问 `GET /api/cache` 查看 `enabled` 字段
+1. 检查缓存是否启用：访问 `GET /v1/cache` 查看 `enabled` 字段
 2. 确保使用完全相同的图片和焦距
 3. 增加缓存大小：`python app.py --cache-size 200`
-4. 查看缓存命中率：访问 `GET /api/cache` 查看 `hit_rate`
+4. 查看缓存命中率：访问 `GET /v1/cache` 查看 `hit_rate`
 
 ### 问题 8: 端口被占用
 **症状**: 启动时报错端口已被使用
@@ -1200,6 +1986,73 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 
 <details>
 <summary><b>点击展开查看版本历史</b></summary>
+
+### v9.0 (2026-01-31)
+- Redis 分布式缓存支持
+- Webhook 异步通知功能
+- 任务完成和失败通知
+- 缓存混合使用（Redis + 本地）
+- Webhook 注册和管理 API
+- 新增依赖：pydantic、redis、httpx
+- 项目完成度达到 100%
+
+### v8.0 (2026-01-31)
+- API 版本控制（v1）
+- Pydantic 数据验证
+- 统一错误响应模型
+- Swagger/OpenAPI 文档
+- 完整的 API 使用文档
+- 项目完成度提升至 98%
+
+### v7.5 (2026-01-29)
+- 性能自动调优
+- 智能基准测试
+- 最优配置选择
+- 性能提升 30-50%
+
+### v7.4 (2026-01-28)
+- 推理缓存功能
+- 智能哈希缓存键
+- LRU 淘汰算法
+- 缓存统计监控
+
+### v7.3 (2026-01-27)
+- 梯度检查点
+- 显存优化 30-50%
+- 智能内存管理
+
+### v7.2 (2026-01-26)
+- Prometheus 监控集成
+- 完整的监控指标
+- GPU 资源监控
+
+### v7.1 (2026-01-25)
+- 输入尺寸参数
+- 自动验证和调整
+- 最大限制 1536x1536
+
+### v7.0 (2026-01-24)
+- 异步优化升级
+- ProcessPoolExecutor
+- 健康检查和统计 API
+- 并发处理能力提升 30-50%
+
+### v6.2 (2026-01-23)
+- 日志系统升级
+- loguru 集成
+- 结构化日志
+- 文件日志轮转
+
+### v6.1 (2026-01-22)
+- 配置文件支持
+- YAML 和 JSON 格式
+- 灵活配置管理
+
+### v6.0 (2026-01-21)
+- 代码重构
+- 面向对象设计
+- 管理器模式
+- 类型提示完善
 
 ### v5.0 (2026-01-24)
 - 全面兼容性升级
@@ -1226,7 +2079,7 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 ## 技术栈
 
 - **后端框架**: FastAPI + Uvicorn
-- **深度学习**: PyTorch + Apple SHaRP 模型
+- **深度学习**: PyTorch + Apple ml-sharp 模型
 - **3D 渲染**: 3D Gaussian Splatting
 - **GPU 加速**: CUDA (NVIDIA) / ROCm (AMD)
 - **CPU 优化**: OpenMP / MKL
@@ -1237,7 +2090,7 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 ---
 
 ## 许可证
-本项目基于 Apple SHaRP 模型，请遵守相关开源协议。
+本项目基于 Apple ml-sharp 模型，请遵守相关开源协议。
 
 ---
 
@@ -1254,12 +2107,7 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 
 ### 待改进
 #### 高优先级
-1. **API 文档** - 自动生成 API 文档
-   - Swagger/OpenAPI 集成
-   - 交互式 API 测试界面
-   - 请求/响应示例
-
-2. **认证授权** - 添加用户认证
+1. **认证授权** - 添加用户认证
    - API Key 认证
    - JWT Token 支持
    - 速率限制
@@ -1270,15 +2118,10 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
    - 任务状态追踪
    - 批量处理支持
 
-2. **缓存机制** - 提升响应速度
-   - Redis 缓存
-   - 结果缓存
-   - 预测结果缓存
-
-3. **Webhook 支持** - 异步通知
-   - 任务完成通知
-   - 错误通知
-   - 自定义回调
+2. **批量处理 API** - 批量图片处理
+   - 多文件上传
+   - 批量预测
+   - 结果打包下载
 
 #### 低优先级
 1. **国际化** - 多语言支持
@@ -1317,4 +2160,5 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 
 Modded with ❤️ by Chidc with CPU-Mode-Provider GemosDoDo
 
+README.md Verison Code **261311317**
 </div>
