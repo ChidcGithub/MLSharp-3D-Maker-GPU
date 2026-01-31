@@ -36,7 +36,7 @@
 ![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.128+-green.svg)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
-[![Platform: Android](https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white)](https://www.android.com)
+[![Mobile-Android](https://img.shields.io/badge/Mobile-Android-1976D2?logo=android)](https://www.android.com)
 ![API](https://img.shields.io/badge/API-RESTful-blueviolet.svg)
 ![stars](https://img.shields.io/github/stars/chidcGithub/MLSharp-3D-Maker-GPU)
 [![GitHub Release APK](https://img.shields.io/github/v/release/chidcGithub/MLSharp-3D-Maker-GPU?label=Download%20APK&color=blue)](https://github.com/chidcGithub/MLSharp-3D-Maker-GPU/releases/latest)
