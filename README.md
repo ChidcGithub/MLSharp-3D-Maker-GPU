@@ -44,22 +44,22 @@ MLSharp-3D-Maker 是一个基于 Apple ml-sharp 模型的 3D 高斯泼溅（3D G
 
 ### 项目完成度
 
-| 模块     | 状态     | 完成度  | 说明                   |
-|--------|--------|------|----------------------|
-| 核心功能   | 完成   | 100% | 图像到 3D 模型转换          |
-| GPU 加速 | 完成   | 100% | NVIDIA/AMD/Intel 支持  |
-| 配置管理   | 完成   | 100% | 命令行 + 配置文件           |
-| 日志系统   | 完成   | 100% | loguru 专业日志          |
-| 异步处理   | 完成   | 100% | ProcessPoolExecutor  |
-| 单元测试   | 完成   | 90%  | 核心类测试覆盖              |
-| API 接口 | 完成   | 100% | 预测 + 健康检查 + 缓存管理     |
-| 监控指标   | 完成   | 90%  | Prometheus 集成 + 性能监控 |
-| 推理缓存   | 完成   | 100% | LRU 缓存 + Redis 分布式缓存 |
-| 性能自动调优 | 完成   | 100% | 智能基准测试 + 最优配置选择      |
-| Webhook  | 完成   | 100% | 异步通知 + 事件管理          |
-| 文档     | 完成   | 100% | README + 配置示例 + API 文档 |
-| API 文档 | 完成   | 100% | Swagger/OpenAPI + 版本控制 |
-| 认证授权   | 待开发 | 0%   | API Key/JWT          |
+| 模块      | 状态  | 完成度  | 说明                             |
+|---------|-----|------|--------------------------------|
+| 核心功能    | 完成  | 100% | 图像到 3D 模型转换                    |
+| GPU 加速  | 完成  | 100% | NVIDIA/AMD/Intel/Snapdragon(Preview) 支持 |
+| 配置管理    | 完成  | 100% | 命令行 + 配置文件                     |
+| 日志系统    | 完成  | 100% | loguru 专业日志                    |
+| 异步处理    | 完成  | 100% | ProcessPoolExecutor            |
+| 单元测试    | 完成  | 90%  | 核心类测试覆盖                        |
+| API 接口  | 完成  | 100% | 预测 + 健康检查 + 缓存管理               |
+| 监控指标    | 完成  | 90%  | Prometheus 集成 + 性能监控           |
+| 推理缓存    | 完成  | 100% | LRU 缓存 + Redis 分布式缓存           |
+| 性能自动调优  | 完成  | 100% | 智能基准测试 + 最优配置选择                |
+| Webhook | 完成  | 100% | 异步通知 + 事件管理                    |
+| 文档      | 完成  | 100% | README + 配置示例 + API 文档         |
+| API 文档  | 完成  | 100% | Swagger/OpenAPI + 版本控制         |
+| 认证授权    | 待开发 | 0%   | API Key/JWT                    |
 
 **总体完成度: 100%+0%**
 
@@ -87,13 +87,21 @@ MLSharp-3D-Maker-GPU-by-Chidc/
 ├── logs/                         # 日志文件夹
 ├── tmp/                          # 临时文件和备份
 │   └── 1.28/                     # 2026-01-28 备份
-└── temp_workspace/               # 临时工作目录
+└──  temp_workspace/               # 临时工作目录
 ```
 
 <details>
 <summary><b>点击展开查看最新更新详情</b></summary>
 
 ### 最新更新（2026-01-31）
+
+**Snapdragon GPU 适配 v9.1**
+- **Adreno GPU 检测** - 自动检测 Snapdragon/Adreno 系列 GPU **(Preview)**
+- **Qualcomm 模式** - 新增 `--mode qualcomm` 启动模式
+- **ONNX Runtime 支持** - 添加 ONNX Runtime + DirectML 加速方案
+- **智能回退** - 检测到 Snapdragon GPU 时自动使用 CPU 模式
+- **平台支持** - Windows/Android 平台识别
+- **文档更新** - 添加 Snapdragon GPU 支持说明和限制
 
 **分布式缓存与异步通知 v9.0**
 - **Redis 缓存** - 实现基于 Redis 的分布式缓存支持
@@ -193,7 +201,7 @@ MLSharp-3D-Maker-GPU-by-Chidc/
 ```
 
 **功能特点：**
-- **自动检测**: GPU 类型（NVIDIA/AMD/Intel）、环境配置、依赖库
+- **自动检测**: GPU 类型（NVIDIA/AMD/Intel/Snapdragon(Preview)）、环境配置、依赖库
 - **智能推荐**: 根据显卡自动推荐最佳启动脚本
 - **全面诊断**: 100+ 错误处理，智能识别问题
 - **解决方案**: 每个错误都提供详细的解决建议
@@ -211,6 +219,9 @@ python app.py --mode gpu
 # 强制使用 CPU 模式
 python app.py --mode cpu
 
+# Snapdragon GPU 模式（检测后使用 CPU 或 ONNX Runtime）
+python app.py --mode qualcomm
+
 # 自定义端口
 python app.py --port 8080
 
@@ -221,6 +232,37 @@ python app.py --no-browser
 ### 访问地址
 
 启动后访问：http://127.0.0.1:8000
+
+---
+
+## 依赖安装
+
+### 基础依赖
+
+```bash
+pip install -r requirements.txt
+```
+
+### Snapdragon GPU 加速 (Preview)（可选）
+
+如果使用 Snapdragon GPU（如 Snapdragon X Elite），安装 ONNX Runtime GPU 版本：
+
+```bash
+# Windows
+pip install onnxruntime-gpu
+
+# Linux/Mac
+pip install onnxruntime
+```
+
+### 验证安装
+
+```bash
+# 检查 ONNX Runtime 是否安装
+python -c "import onnxruntime as ort; print(ort.get_available_providers())"
+```
+
+如果输出包含 `DmlExecutionProvider`，说明 DirectML 支持已启用，可以使用 Snapdragon GPU 加速。
 
 ---
 
@@ -246,18 +288,19 @@ python app.py --no-browser
 | `--cache-size`         |      | int    | `100`          | 缓存最大条目数                |
 | `--clear-cache`        |      | flag   | false          | 启动时清空缓存                |
 | `--enable-auto-tune`   |      | flag   | false          | 启用性能自动调优               |
-| `--redis-url`          |      | string | -              | Redis 连接 URL（分布式缓存）   |
-| `--enable-webhook`     |      | flag   | false          | 启用 Webhook 异步通知         |
+| `--redis-url`          |      | string | -              | Redis 连接 URL（分布式缓存）    |
+| `--enable-webhook`     |      | flag   | false          | 启用 Webhook 异步通知        |
 
 ### 启动模式 (--mode)
 
-| 模式       | 说明                    |
-|----------|-----------------------|
-| `auto`   | 自动检测并选择最佳模式（默认）       |
-| `gpu`    | 强制使用 GPU 模式（自动检测厂商）   |
-| `cpu`    | 强制使用 CPU 模式           |
-| `nvidia` | 强制使用 NVIDIA GPU 模式    |
-| `amd`    | 强制使用 AMD GPU 模式（ROCm） |
+| 模式         | 说明                                |
+|------------|-----------------------------------|
+| `auto`     | 自动检测并选择最佳模式（默认）                   |
+| `gpu`      | 强制使用 GPU 模式（自动检测厂商）               |
+| `cpu`      | 强制使用 CPU 模式                       |
+| `nvidia`   | 强制使用 NVIDIA GPU 模式                |
+| `amd`      | 强制使用 AMD GPU 模式（ROCm）             |
+| `qualcomm` | 强制使用 Snapdragon GPU 模式（检测后使用 CPU） |
 
 ### 输入尺寸 (--input-size)
 
@@ -401,6 +444,36 @@ python app.py -h
 | Xe      | Arc 系列 | ⚠️ 仅 CPU 模式 |
 | Iris Xe | 集成显卡   | ⚠️ 仅 CPU 模式 |
 | UHD     | 集成显卡   | ⚠️ 仅 CPU 模式 |
+
+### Qualcomm/Snapdragon GPU (Preview)
+| 架构     | 显卡系列       | 支持状态      | 说明                             |
+|--------|------------|-----------|--------------------------------|
+| Adreno | 600/700 系列 | ⚠️ CPU 模式 | 检测到 Snapdragon GPU，使用 CPU 模式运行 |
+| Adreno | 500 系列及以下  | ⚠️ CPU 模式 | 检测到 Snapdragon GPU，使用 CPU 模式运行 |
+
+**Snapdragon GPU 加速方案**:
+
+**方案 1：ONNX Runtime + DirectML（推荐 Windows）**
+```bash
+# 安装 ONNX Runtime GPU 版本（包含 DirectML 支持）
+pip install onnxruntime-gpu
+```
+- 支持 Snapdragon X Elite/8cx 等 Windows on ARM 设备
+- 需要将模型转换为 ONNX 格式
+- 使用 DirectML 执行提供者进行 GPU 加速
+
+**方案 2：Android 设备**
+- 使用 SNPE (Snapdragon Neural Processing Engine) SDK
+- 使用 QNN (Qualcomm Neural Network) SDK
+
+**方案 3：PyTorch（仅 CPU）**
+- 当前默认使用 PyTorch CPU 模式
+- 无需额外配置，兼容性最好
+
+**注意**: PyTorch 原生不支持 Adreno GPU，必须通过 ONNX Runtime 才能实现 GPU 加速。
+- **Windows**: 已集成 ONNX Runtime 检测，安装 `onnxruntime-gpu` 后可启用 DirectML 加速
+- **检测**: 系统会自动检测 Snapdragon/Adreno GPU 并显示相关信息
+- **模型转换**: 使用 ONNX Runtime 需要将 PyTorch 模型转换为 ONNX 格式（待实现）
 
 </details>
 
@@ -2081,7 +2154,7 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 - **后端框架**: FastAPI + Uvicorn
 - **深度学习**: PyTorch + Apple ml-sharp 模型
 - **3D 渲染**: 3D Gaussian Splatting
-- **GPU 加速**: CUDA (NVIDIA) / ROCm (AMD)
+- **GPU 加速**: CUDA (NVIDIA) / ROCm (AMD) / ONNX (Snapdragon) **Preview**
 - **CPU 优化**: OpenMP / MKL
 - **日志系统**: Loguru
 - **监控指标**: Prometheus + Prometheus Client
@@ -2159,6 +2232,5 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 **如果这个项目对你有帮助，请给个 ⭐️ Star！**
 
 Modded with ❤️ by Chidc with CPU-Mode-Provider GemosDoDo
-
-README.md Verison Code **261311317**
+README.md Verison Code **2601311936**
 </div>
