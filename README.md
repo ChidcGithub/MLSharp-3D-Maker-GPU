@@ -41,7 +41,12 @@
 ## 项目概述
 
 MLSharp-3D-Maker 是一个基于 Apple ml-sharp 模型的 3D 高斯泼溅（3D Gaussian Splatting）生成工具，可以从单张照片生成高质量的 3D 模型。
-此分支为此项目能够在Android及Apple平台上运行提供基础。
+
+---
+
+##此分支为此项目能够在Android及Apple平台上运行提供基础。
+
+---
 
 ## 项目结构及更新
 
