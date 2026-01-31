@@ -47,7 +47,7 @@ MLSharp-3D-Maker 是一个基于 Apple ml-sharp 模型的 3D 高斯泼溅（3D G
 | 模块      | 状态  | 完成度  | 说明                             |
 |---------|-----|------|--------------------------------|
 | 核心功能    | 完成  | 100% | 图像到 3D 模型转换                    |
-| GPU 加速  | 完成  | 100% | NVIDIA/AMD/Intel/Snapdragon(Preview) 支持 |
+| GPU 加速  | 完成  | 100% | NVIDIA/AMD/Intel/Snapdragon 支持 |
 | 配置管理    | 完成  | 100% | 命令行 + 配置文件                     |
 | 日志系统    | 完成  | 100% | loguru 专业日志                    |
 | 异步处理    | 完成  | 100% | ProcessPoolExecutor            |
@@ -96,7 +96,7 @@ MLSharp-3D-Maker-GPU-by-Chidc/
 ### 最新更新（2026-01-31）
 
 **Snapdragon GPU 适配 v9.1**
-- **Adreno GPU 检测** - 自动检测 Snapdragon/Adreno 系列 GPU **(Preview)**
+- **Adreno GPU 检测** - 自动检测 Snapdragon/Adreno 系列 GPU
 - **Qualcomm 模式** - 新增 `--mode qualcomm` 启动模式
 - **ONNX Runtime 支持** - 添加 ONNX Runtime + DirectML 加速方案
 - **智能回退** - 检测到 Snapdragon GPU 时自动使用 CPU 模式
@@ -201,7 +201,7 @@ MLSharp-3D-Maker-GPU-by-Chidc/
 ```
 
 **功能特点：**
-- **自动检测**: GPU 类型（NVIDIA/AMD/Intel/Snapdragon(Preview)）、环境配置、依赖库
+- **自动检测**: GPU 类型（NVIDIA/AMD/Intel/Snapdragon）、环境配置、依赖库
 - **智能推荐**: 根据显卡自动推荐最佳启动脚本
 - **全面诊断**: 100+ 错误处理，智能识别问题
 - **解决方案**: 每个错误都提供详细的解决建议
@@ -243,7 +243,7 @@ python app.py --no-browser
 pip install -r requirements.txt
 ```
 
-### Snapdragon GPU 加速 (Preview)（可选）
+### Snapdragon GPU 加速（可选）
 
 如果使用 Snapdragon GPU（如 Snapdragon X Elite），安装 ONNX Runtime GPU 版本：
 
@@ -445,7 +445,7 @@ python app.py -h
 | Iris Xe | 集成显卡   | ⚠️ 仅 CPU 模式 |
 | UHD     | 集成显卡   | ⚠️ 仅 CPU 模式 |
 
-### Qualcomm/Snapdragon GPU (Preview)
+### Qualcomm/Snapdragon GPU
 | 架构     | 显卡系列       | 支持状态      | 说明                             |
 |--------|------------|-----------|--------------------------------|
 | Adreno | 600/700 系列 | ⚠️ CPU 模式 | 检测到 Snapdragon GPU，使用 CPU 模式运行 |
@@ -2154,7 +2154,7 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 - **后端框架**: FastAPI + Uvicorn
 - **深度学习**: PyTorch + Apple ml-sharp 模型
 - **3D 渲染**: 3D Gaussian Splatting
-- **GPU 加速**: CUDA (NVIDIA) / ROCm (AMD) / ONNX (Snapdragon) **Preview**
+- **GPU 加速**: CUDA (NVIDIA) / ROCm (AMD)
 - **CPU 优化**: OpenMP / MKL
 - **日志系统**: Loguru
 - **监控指标**: Prometheus + Prometheus Client

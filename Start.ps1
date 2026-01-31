@@ -105,10 +105,10 @@ Write-Host "系统信息" -ForegroundColor Cyan
 Write-Host "==============================================================================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "支持模式:" -ForegroundColor Yellow
-Write-Host "  [OK] NVIDIA GPU (CUDA)" -ForegroundColor Green
-Write-Host "  [OK] AMD GPU (ROCm)" -ForegroundColor Green
-Write-Host "  [OK] Intel GPU (CPU 回退)" -ForegroundColor Green
-Write-Host "  [OK] CPU 模式" -ForegroundColor Green
+Write-Host "NVIDIA GPU (CUDA)" -ForegroundColor Green
+Write-Host "AMD GPU (ROCm)" -ForegroundColor Green
+Write-Host "Intel GPU (CPU 回退)" -ForegroundColor Green
+Write-Host "CPU 模式" -ForegroundColor Green
 Write-Host ""
 Write-Host "==============================================================================================" -ForegroundColor Cyan
 Write-Host ""
@@ -118,7 +118,7 @@ Write-Host ""
 Write-Host "==============================================================================================" -ForegroundColor Cyan
 Write-Host ""
 
-& $pythonPath "app.py" --enable-auto-tune
+& $pythonPath "app.py" --enable-auto-tune --config config/config.yaml
 
 # 错误处理
 if ($LASTEXITCODE -ne 0) {

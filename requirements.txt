@@ -2,10 +2,21 @@
 torch>=2.0.0
 torchvision>=0.15.0
 
+# ONNX Runtime for GPU Acceleration
+onnxruntime-gpu>=1.16.0; platform_system == "Windows"
+onnxruntime>=1.16.0; platform_system != "Windows"
+
 # FastAPI and Server
 fastapi>=0.128.0
 uvicorn[standard]>=0.40.0
 python-multipart>=0.0.21
+pydantic>=2.0.0
+
+# Caching
+redis>=5.0.0
+
+# Webhook and HTTP
+httpx>=0.25.0
 
 # 3D Gaussian Splatting
 sharp>=0.1.0

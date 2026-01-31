@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 MLSharp-3D-Maker - 统一版本
-支持 NVIDIA/AMD/Intel GPU 和 CPU,自动检测并优化
+支持 NVIDIA/AMD/Intel/Snapdragon GPU 和 CPU,自动检测并优化
 """
 import sys
 import os
@@ -19,6 +19,7 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Optional, Tuple, Dict, Any
+from pydantic import BaseModel, Field
 
 import numpy as np
 import torch
@@ -26,6 +27,14 @@ import json
 import yaml
 from loguru import logger
 from metrics import init_metrics, get_metrics_manager
+
+# ONNX Runtime for Snapdragon GPU acceleration
+try:
+    import onnxruntime as ort
+    ONNXRUNTIME_AVAILABLE = True
+except ImportError:
+    ONNXRUNTIME_AVAILABLE = False
+    ort = None
 
 # 设置输出编码为 UTF-8(Windows)
 if sys.platform == 'win32':
@@ -72,6 +81,9 @@ class GPUConfig:
     use_cudnn_benchmark: bool = False
     use_tf32: bool = False
     is_rocm: bool = False
+    is_adreno: bool = False
+    use_onnxruntime: bool = False
+    onnx_execution_provider: Optional[str] = None
 
 
 @dataclass
@@ -91,6 +103,9 @@ class CLIArgs:
     cache_size: int = 100
     clear_cache: bool = False
     enable_auto_tune: bool = False
+    redis_url: Optional[str] = None
+    enable_webhook: bool = False
+    app_config: Optional[AppConfig] = None  # 应用配置（用于性能自动调优）
 
 
 # ================= 配置文件加载 =================
@@ -368,8 +383,8 @@ def parse_command_args() -> Tuple[CLIArgs, Optional[Dict[str, Any]]]:
     )
     
     parser.add_argument('--mode', '-m', type=str, default='auto',
-                        choices=['auto', 'gpu', 'cpu', 'nvidia', 'amd'],
-                        help='启动模式：auto(自动), gpu(GPU), cpu(CPU), nvidia(NVIDIA), amd(AMD)')
+                        choices=['auto', 'gpu', 'cpu', 'nvidia', 'amd', 'qualcomm'],
+                        help='启动模式：auto(自动), gpu(GPU), cpu(CPU), nvidia(NVIDIA), amd(AMD), qualcomm(Snapdragon)')
     parser.add_argument('--port', '-p', type=int, default=8000,
                         help='Web 服务端口（默认：8000）')
     parser.add_argument('--host', type=str, default='127.0.0.1',
@@ -399,6 +414,10 @@ def parse_command_args() -> Tuple[CLIArgs, Optional[Dict[str, Any]]]:
                         help='启动时清空缓存')
     parser.add_argument('--enable-auto-tune', action='store_true',
                         help='启用性能自动调优（启动时自动测试并选择最优配置）')
+    parser.add_argument('--redis-url', type=str, default=None,
+                        help='Redis 连接 URL（例如：redis://localhost:6379/0）')
+    parser.add_argument('--enable-webhook', action='store_true',
+                        help='启用 Webhook 通知')
     
     args = parser.parse_args()
     
@@ -461,6 +480,10 @@ def parse_command_args() -> Tuple[CLIArgs, Optional[Dict[str, Any]]]:
             enable_auto_tune=args.enable_auto_tune
         )
     
+    # 设置 app_config（性能自动调优需要）
+    app_config = AppConfig.from_current_dir()
+    cli_args.app_config = app_config
+    
     return cli_args, config_dict
 
 
@@ -478,6 +501,7 @@ class GPUManager:
     def __init__(self, config: GPUConfig, args: CLIArgs):
         self.config = config
         self.args = args
+        self.app_config = args.app_config if hasattr(args, 'app_config') else None
         self.device = torch.device("cpu")
     
     @staticmethod
@@ -486,7 +510,7 @@ class GPUManager:
         try:
             # 首先尝试使用 PowerShell Get-CimInstance(Windows 11 推荐)
             result = subprocess.run(
-                ['powershell', '-Command', 
+                ['powershell', '-Command',
                  'Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name'],
                 capture_output=True, text=True, encoding='utf-8', errors='ignore'
             )
@@ -496,21 +520,26 @@ class GPUManager:
                 nvidia_found = False
                 amd_found = False
                 intel_found = False
-                
+                adreno_found = False
+
                 for line in lines:
                     name = line.strip().lower()
                     if 'nvidia' in name or 'geforce' in name or 'quadro' in name or 'tesla' in name or 'rtx' in name or 'gtx' in name:
                         nvidia_found = True
                     elif 'amd' in name or 'radeon' in name or 'rx' in name:
                         amd_found = True
+                    elif 'snapdragon' in name or 'adreno' in name or 'qualcomm' in name:
+                        adreno_found = True
                     elif 'intel' in name or 'iris' in name or 'uhd' in name or 'arc' in name:
                         intel_found = True
-                
+
                 # 返回优先级最高的厂商
                 if nvidia_found:
                     return 'NVIDIA'
                 elif amd_found:
                     return 'AMD'
+                elif adreno_found:
+                    return 'Qualcomm'
                 elif intel_found:
                     return 'Intel'
             else:
@@ -524,20 +553,25 @@ class GPUManager:
                     nvidia_found = False
                     amd_found = False
                     intel_found = False
-                    
+                    adreno_found = False
+
                     for line in lines:
                         name = line.strip().lower()
                         if 'nvidia' in name or 'geforce' in name or 'quadro' in name or 'tesla' in name or 'rtx' in name or 'gtx' in name:
                             nvidia_found = True
                         elif 'amd' in name or 'radeon' in name or 'rx' in name:
                             amd_found = True
+                        elif 'snapdragon' in name or 'adreno' in name or 'qualcomm' in name:
+                            adreno_found = True
                         elif 'intel' in name or 'iris' in name or 'uhd' in name or 'arc' in name:
                             intel_found = True
-                    
+
                     if nvidia_found:
                         return 'NVIDIA'
                     elif amd_found:
                         return 'AMD'
+                    elif adreno_found:
+                        return 'Qualcomm'
                     elif intel_found:
                         return 'Intel'
         except Exception as e:
@@ -558,6 +592,55 @@ class GPUManager:
         except Exception as e:
             Logger.warning(f"ROCm 检测失败: {e}")
             return False
+
+    @staticmethod
+    def check_adreno_available() -> bool:
+        """检查 Adreno (Snapdragon) GPU 是否可用"""
+        try:
+            import torch
+            # Snapdragon GPU 通常通过 OpenCL/Vulkan，而不是 CUDA
+            if hasattr(torch, 'backends') and hasattr(torch.backends, 'opencl'):
+                if torch.backends.opencl.is_available():
+                    return True
+            # 检查是否有 qnn 或 snpe 相关模块
+            try:
+                import importlib
+                if importlib.util.find_spec('qnn') or importlib.util.find_spec('snpe'):
+                    return True
+            except:
+                pass
+            return False
+        except Exception as e:
+            Logger.warning(f"Adreno 检测失败: {e}")
+            return False
+
+    @staticmethod
+    def check_onnxruntime_available() -> Tuple[bool, Optional[str]]:
+        """检查 ONNX Runtime 是否可用并返回执行提供者"""
+        if not ONNXRUNTIME_AVAILABLE:
+            return False, None
+
+        try:
+            available_providers = ort.get_available_providers()
+            Logger.info(f"ONNX Runtime 可用的执行提供者: {available_providers}")
+
+            # 优先级：DirectML > CUDA > ROCm > CPU
+            for provider in ['DmlExecutionProvider', 'CUDAExecutionProvider', 'ROCMExecutionProvider', 'CPUExecutionProvider']:
+                if provider in available_providers:
+                    if provider == 'DmlExecutionProvider':
+                        Logger.success("  DirectML 执行提供者可用 (支持 Snapdragon GPU)")
+                        return True, provider
+                    elif provider == 'CPUExecutionProvider':
+                        Logger.info("  仅 CPU 执行提供者可用")
+                        return True, provider
+                    else:
+                        Logger.info(f"  {provider} 可用")
+                        return True, provider
+
+            return False, None
+        except Exception as e:
+            Logger.warning(f"ONNX Runtime 检测失败: {e}")
+            return False, None
     
     def initialize(self) -> torch.device:
         """初始化 GPU 设备"""
@@ -596,6 +679,11 @@ class GPUManager:
                 elif 'amd' in gpu_name_lower or 'radeon' in gpu_name_lower or 'rx' in gpu_name_lower:
                     self.config.vendor = "AMD"
                     Logger.success(f"检测到 AMD GPU: {self.config.name}")
+                elif 'snapdragon' in gpu_name_lower or 'adreno' in gpu_name_lower or 'qualcomm' in gpu_name_lower:
+                    self.config.vendor = "Qualcomm"
+                    self.config.is_adreno = True
+                    Logger.success(f"检测到 Snapdragon/Adreno GPU: {self.config.name}")
+                    Logger.info("   Adreno GPU 检测到，将使用 CPU 模式运行")
                 elif 'intel' in gpu_name_lower or 'iris' in gpu_name_lower or 'uhd' in gpu_name_lower or 'arc' in gpu_name_lower:
                     self.config.vendor = "Intel"
                     Logger.success(f"检测到 Intel GPU: {self.config.name}")
@@ -607,6 +695,21 @@ class GPUManager:
                     elif system_vendor == 'AMD':
                         self.config.vendor = "AMD"
                         Logger.success(f"检测到 AMD GPU: {self.config.name}")
+                    elif system_vendor == 'Qualcomm':
+                        self.config.vendor = "Qualcomm"
+                        self.config.is_adreno = True
+                        Logger.success(f"检测到 Snapdragon/Adreno GPU: {self.config.name}")
+
+                        # 检查 ONNX Runtime DirectML 支持
+                        Logger.info("\n检查 ONNX Runtime DirectML 支持...")
+                        onnx_available, onnx_provider = self.check_onnxruntime_available()
+                        if onnx_available and onnx_provider == 'DmlExecutionProvider':
+                            self.config.use_onnxruntime = True
+                            self.config.onnx_execution_provider = onnx_provider
+                            Logger.success("   ONNX Runtime + DirectML 已启用，可使用 GPU 加速")
+                        else:
+                            Logger.info("   Adreno GPU 检测到，将使用 CPU 模式运行")
+                            Logger.info("   提示: 安装 onnxruntime-gpu 可启用 DirectML 加速")
                     elif system_vendor == 'Intel':
                         self.config.vendor = "Intel"
                         Logger.success(f"检测到 Intel GPU: {self.config.name}")
@@ -717,7 +820,13 @@ class GPUManager:
             return
         
         try:
-            tuner = PerformanceAutoTuner(self.config, self.device)
+            # 如果没有指定配置文件，使用默认的 config.yaml
+            config_file_path = self.args.config_file
+            if not config_file_path:
+                config_file_path = os.path.join(self.app_config.base_dir, 'config.yaml')
+                Logger.info(f"使用默认配置文件: {config_file_path}")
+            
+            tuner = PerformanceAutoTuner(self.config, self.device, config_file_path=config_file_path)
             best_config = tuner.benchmark_optimizations()
             
             if best_config:
@@ -734,10 +843,25 @@ class GPUManager:
         system_vendor = self.detect_gpu_vendor_wmi()
         self.config.vendor = system_vendor
         self.device = torch.device("cpu")
-        
+
         Logger.warning("使用 CPU 模式")
         Logger.info("   原因: CUDA/ROCm 不可用")
-        
+
+        # 检查 ONNX Runtime 支持（适用于 Snapdragon 等非 CUDA GPU）
+        if ONNXRUNTIME_AVAILABLE:
+            Logger.info("\n检测 ONNX Runtime 支持...")
+            onnx_available, onnx_provider = self.check_onnxruntime_available()
+            if onnx_available:
+                self.config.use_onnxruntime = True
+                self.config.onnx_execution_provider = onnx_provider
+                if onnx_provider == 'DmlExecutionProvider':
+                    Logger.success("   ONNX Runtime + DirectML 已启用")
+                    Logger.info("   注意: 需要使用 ONNX 格式模型才能利用 GPU 加速")
+                else:
+                    Logger.info(f"   ONNX Runtime 已启用 (使用 {onnx_provider})")
+            else:
+                Logger.info("   ONNX Runtime 不可用，使用 PyTorch CPU 模式")
+
         if system_vendor == "AMD":
             Logger.info("   检测到 AMD 显卡,但 PyTorch 未编译 ROCm 支持")
             Logger.info("   解决方案: 安装 ROCm 版本的 PyTorch")
@@ -747,6 +871,16 @@ class GPUManager:
             Logger.info("     1. 是否安装 NVIDIA 显卡驱动")
             Logger.info("     2. 显卡是否支持 CUDA")
             Logger.info("     3. PyTorch 是否编译了 CUDA 支持")
+        elif system_vendor == "Qualcomm":
+            Logger.info("   检测到 Snapdragon/Adreno GPU")
+            Logger.info("   Snapdragon GPU 加速方案:")
+            Logger.info("     1. 安装 onnxruntime-gpu (Windows)")
+            Logger.info("     2. 使用 ONNX 格式模型 + DirectML")
+            Logger.info("     3. Android: 使用 SNPE/QNN SDK")
+            if self.config.use_onnxruntime and self.config.onnx_execution_provider == 'DmlExecutionProvider':
+                Logger.success("   当前支持通过 ONNX Runtime + DirectML 加速")
+            else:
+                Logger.info("   当前使用 CPU 模式运行")
         elif system_vendor == "Intel":
             Logger.info("   检测到 Intel 显卡")
             Logger.info("   Intel GPU 暂不支持 GPU 加速")
@@ -896,22 +1030,424 @@ class CacheManager:
             Logger.info(f"未命中次数: {stats['misses']}")
             Logger.info(f"命中率: {stats['hit_rate']:.1f}%")
 
+# ================= Redis 缓存管理器 =================
+class RedisCacheManager:
+    """Redis 缓存管理器 - 用于分布式缓存"""
+    
+    def __init__(self, redis_url: str = "redis://localhost:6379/0", prefix: str = "mlsharp"):
+        """
+        初始化 Redis 缓存管理器
+        
+        Args:
+            redis_url: Redis 连接 URL
+            prefix: 缓存键前缀
+        """
+        self.redis_url = redis_url
+        self.prefix = prefix
+        self.redis_client = None
+        self.enabled = False
+        self._init_redis()
+    
+    def _init_redis(self):
+        """初始化 Redis 客户端"""
+        try:
+            import redis
+            self.redis_client = redis.from_url(self.redis_url, decode_responses=False)
+            # 测试连接
+            self.redis_client.ping()
+            self.enabled = True
+            Logger.info(f"Redis 缓存已连接: {self.redis_url}")
+        except ImportError:
+            Logger.warning("redis 模块未安装，Redis 缓存将不可用")
+            Logger.info("安装命令: pip install redis")
+        except Exception as e:
+            Logger.warning(f"Redis 连接失败: {e}")
+            Logger.info("Redis 缓存将不可用，使用本地缓存代替")
+    
+    def _get_cache_key(self, image: np.ndarray, f_px: float) -> str:
+        """计算缓存键"""
+        import hashlib
+        image_hash = hashlib.md5(image.tobytes()).hexdigest()
+        return f"{self.prefix}:result:{image_hash}_{f_px:.6f}"
+    
+    def get(self, image: np.ndarray, f_px: float) -> Optional[Any]:
+        """从 Redis 获取缓存结果"""
+        if not self.enabled or not self.redis_client:
+            return None
+        
+        try:
+            cache_key = self._get_cache_key(image, f_px)
+            data = self.redis_client.get(cache_key)
+            
+            if data:
+                # 反序列化
+                import pickle
+                result = pickle.loads(data)
+                Logger.debug(f"Redis 缓存命中: {cache_key}")
+                return result
+            else:
+                Logger.debug(f"Redis 缓存未命中: {cache_key}")
+                return None
+        except Exception as e:
+            Logger.error(f"Redis 缓存获取失败: {e}")
+            return None
+    
+    def set(self, image: np.ndarray, f_px: float, result: Any, ttl: int = 3600):
+        """
+        将结果存入 Redis 缓存
+        
+        Args:
+            image: 输入图像
+            f_px: 焦距
+            result: 预测结果
+            ttl: 过期时间（秒），默认 1 小时
+        """
+        if not self.enabled or not self.redis_client:
+            return
+        
+        try:
+            cache_key = self._get_cache_key(image, f_px)
+            # 序列化
+            import pickle
+            data = pickle.dumps(result)
+            
+            # 存入 Redis
+            self.redis_client.setex(cache_key, ttl, data)
+            Logger.debug(f"Redis 缓存已添加: {cache_key} (TTL: {ttl}s)")
+        except Exception as e:
+            Logger.error(f"Redis 缓存存储失败: {e}")
+    
+    def clear(self):
+        """清空 Redis 缓存"""
+        if not self.enabled or not self.redis_client:
+            return
+        
+        try:
+            # 获取所有匹配前缀的键
+            keys = self.redis_client.keys(f"{self.prefix}:*")
+            if keys:
+                self.redis_client.delete(*keys)
+                Logger.info(f"Redis 缓存已清空: {len(keys)} 个键")
+            else:
+                Logger.info("Redis 缓存为空")
+        except Exception as e:
+            Logger.error(f"Redis 缓存清空失败: {e}")
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """获取 Redis 缓存统计信息"""
+        if not self.enabled or not self.redis_client:
+            return {
+                "enabled": False,
+                "type": "local"
+            }
+        
+        try:
+            keys = self.redis_client.keys(f"{self.prefix}:*")
+            return {
+                "enabled": True,
+                "type": "redis",
+                "size": len(keys),
+                "url": self.redis_url
+            }
+        except Exception as e:
+            Logger.error(f"Redis 缓存统计失败: {e}")
+            return {
+                "enabled": False,
+                "type": "local",
+                "error": str(e)
+            }
+
+# ================= Webhook 管理器 =================
+class WebhookManager:
+    """Webhook 通知管理器"""
+    
+    def __init__(self, enabled: bool = False):
+        """
+        初始化 Webhook 管理器
+        
+        Args:
+            enabled: 是否启用 Webhook
+        """
+        self.enabled = enabled
+        self.webhooks: Dict[str, str] = {}  # event_type -> url
+        self._init_httpx()
+    
+    def _init_httpx(self):
+        """初始化 HTTP 客户端"""
+        try:
+            import httpx
+            self.http_client = httpx.AsyncClient(timeout=30.0)
+            Logger.info("Webhook 客户端已初始化")
+        except ImportError:
+            Logger.warning("httpx 模块未安装，Webhook 功能将不可用")
+            Logger.info("安装命令: pip install httpx")
+            self.http_client = None
+    
+    def register_webhook(self, event_type: str, url: str):
+        """
+        注册 Webhook
+        
+        Args:
+            event_type: 事件类型（task_completed, task_failed, etc.）
+            url: Webhook URL
+        """
+        if not self.enabled:
+            Logger.warning("Webhook 未启用，无法注册")
+            return
+        
+        self.webhooks[event_type] = url
+        Logger.info(f"Webhook 已注册: {event_type} -> {url}")
+    
+    def unregister_webhook(self, event_type: str):
+        """
+        注销 Webhook
+        
+        Args:
+            event_type: 事件类型
+        """
+        if event_type in self.webhooks:
+            del self.webhooks[event_type]
+            Logger.info(f"Webhook 已注销: {event_type}")
+    
+    async def send_webhook(self, event_type: str, payload: Dict[str, Any]):
+        """
+        发送 Webhook 通知
+        
+        Args:
+            event_type: 事件类型
+            payload: 通知数据
+        """
+        if not self.enabled or event_type not in self.webhooks:
+            return
+        
+        url = self.webhooks[event_type]
+        
+        if not self.http_client:
+            Logger.error("HTTP 客户端未初始化，无法发送 Webhook")
+            return
+        
+        try:
+            response = await self.http_client.post(
+                url,
+                json=payload,
+                headers={
+                    "Content-Type": "application/json",
+                    "X-Webhook-Event": event_type,
+                    "X-Webhook-Timestamp": str(time.time())
+                }
+            )
+            
+            if response.status_code == 200:
+                Logger.info(f"Webhook 发送成功: {event_type} -> {url}")
+            else:
+                Logger.warning(f"Webhook 发送失败: {event_type} -> {url} (状态码: {response.status_code})")
+        except Exception as e:
+            Logger.error(f"Webhook 发送异常: {event_type} -> {url} (错误: {e})")
+    
+    async def notify_task_completed(self, task_id: str, url: str, processing_time: float):
+        """通知任务完成"""
+        await self.send_webhook("task_completed", {
+            "event": "task_completed",
+            "task_id": task_id,
+            "status": "success",
+            "url": url,
+            "processing_time": processing_time,
+            "timestamp": time.time()
+        })
+    
+    async def notify_task_failed(self, task_id: str, error: str):
+        """通知任务失败"""
+        await self.send_webhook("task_failed", {
+            "event": "task_failed",
+            "task_id": task_id,
+            "status": "error",
+            "error": error,
+            "timestamp": time.time()
+        })
+    
+    async def close(self):
+        """关闭 HTTP 客户端"""
+        if self.http_client:
+            await self.http_client.aclose()
+            Logger.info("Webhook 客户端已关闭")
+
 
 # ================= 性能自动调优器 =================
 class PerformanceAutoTuner:
     """性能自动调优器"""
     
-    def __init__(self, gpu_config: GPUConfig, device: torch.device):
+    def __init__(self, gpu_config: GPUConfig, device: torch.device, config_file_path: str = None):
         """
         初始化性能自动调优器
         
         Args:
             gpu_config: GPU 配置
             device: 设备
+            config_file_path: 配置文件路径
         """
         self.gpu_config = gpu_config
         self.device = device
         self.optimization_results = {}
+        self.config_file_path = config_file_path
+        self.cache_ttl_days = 7  # 缓存有效期（天）
+    
+    def _load_cached_results(self) -> Optional[Dict[str, Any]]:
+        """
+        加载缓存的调优结果
+        
+        Returns:
+            缓存的结果，如果过期或不存在则返回 None
+        """
+        if not self.config_file_path or not os.path.exists(self.config_file_path):
+            return None
+        
+        try:
+            with open(self.config_file_path, 'r', encoding='utf-8') as f:
+                if self.config_file_path.endswith('.yaml') or self.config_file_path.endswith('.yml'):
+                    config_data = yaml.safe_load(f)
+                else:
+                    config_data = json.load(f)
+            
+            # 检查是否有缓存的调优结果
+            cache = config_data.get('performance_cache', {})
+            if not cache:
+                return None
+            
+            # 检查是否过期
+            last_test = cache.get('last_test')
+            if last_test:
+                from datetime import datetime, timezone
+                last_test_time = datetime.fromisoformat(last_test)
+                now = datetime.now(timezone.utc)
+                days_diff = (now - last_test_time).days
+                
+                if days_diff < self.cache_ttl_days:
+                    # 检查 GPU 是否匹配
+                    cache_gpu = cache.get('gpu', {})
+                    if (cache_gpu.get('name') == self.gpu_config.name and
+                        cache_gpu.get('vendor') == self.gpu_config.vendor and
+                        cache_gpu.get('compute_capability') == self.gpu_config.compute_capability):
+                        Logger.info(f"发现有效的性能调优缓存（{days_diff} 天前）")
+                        return cache
+            return None
+        except Exception as e:
+            Logger.debug(f"加载性能调优缓存失败: {e}")
+            return None
+    
+    def _save_results_to_config(self, best_config: Dict[str, Any]):
+        """
+        保存调优结果到配置文件
+        
+        Args:
+            best_config: 最优配置
+        """
+        if not self.config_file_path:
+            Logger.warning("未指定配置文件路径，无法保存调优结果")
+            return
+        
+        try:
+            # 确保目录存在
+            config_dir = os.path.dirname(self.config_file_path)
+            if config_dir and not os.path.exists(config_dir):
+                os.makedirs(config_dir, exist_ok=True)
+                Logger.info(f"已创建配置目录: {config_dir}")
+            
+            # 读取现有配置，如果文件不存在则创建默认配置
+            config_data = {}
+            has_existing_cache = False  # 标记是否已存在性能缓存
+            if os.path.exists(self.config_file_path):
+                with open(self.config_file_path, 'r', encoding='utf-8') as f:
+                    if self.config_file_path.endswith('.yaml') or self.config_file_path.endswith('.yml'):
+                        config_data = yaml.safe_load(f) or {}
+                    else:
+                        config_data = json.load(f)
+                has_existing_cache = 'performance_cache' in config_data
+                Logger.info(f"配置文件已存在，更新性能调优缓存: {self.config_file_path}")
+            else:
+                Logger.info(f"配置文件不存在，自动创建新配置文件: {self.config_file_path}")
+                # 创建默认配置结构
+                config_data = {
+                    'server': {
+                        'host': '127.0.0.1',
+                        'port': 8000
+                    },
+                    'mode': 'auto',
+                    'browser': {
+                        'auto_open': True
+                    },
+                    'gpu': {
+                        'enable_amp': True,
+                        'enable_cudnn_benchmark': True,
+                        'enable_tf32': True
+                    },
+                    'logging': {
+                        'level': 'INFO',
+                        'console': True,
+                        'file': False
+                    },
+                    'model': {
+                        'checkpoint': 'model_assets/sharp_2572gikvuh.pt',
+                        'temp_dir': 'temp_workspace'
+                    },
+                    'inference': {
+                        'input_size': [1536, 1536]
+                    },
+                    'optimization': {
+                        'gradient_checkpointing': False,
+                        'checkpoint_segments': 3
+                    },
+                    'cache': {
+                        'enabled': True,
+                        'size': 100
+                    },
+                    'redis': {
+                        'enabled': False,
+                        'url': 'redis://localhost:6379/0',
+                        'prefix': 'mlsharp'
+                    },
+                    'webhook': {
+                        'enabled': False,
+                        'task_completed': '',
+                        'task_failed': ''
+                    },
+                    'monitoring': {
+                        'enabled': True,
+                        'enable_gpu': True,
+                        'metrics_path': '/metrics'
+                    },
+                    'performance': {
+                        'max_workers': 4,
+                        'max_concurrency': 10,
+                        'timeout_keep_alive': 30,
+                        'max_requests': 1000
+                    }
+                }
+            
+            # 更新配置
+            from datetime import datetime, timezone
+            config_data['performance_cache'] = {
+                'last_test': datetime.now(timezone.utc).isoformat(),
+                'best_config': best_config,
+                'gpu': {
+                    'name': self.gpu_config.name,
+                    'vendor': self.gpu_config.vendor,
+                    'compute_capability': self.gpu_config.compute_capability
+                }
+            }
+            
+            # 保存配置
+            with open(self.config_file_path, 'w', encoding='utf-8') as f:
+                if self.config_file_path.endswith('.yaml') or self.config_file_path.endswith('.yml'):
+                    yaml.dump(config_data, f, default_flow_style=False, allow_unicode=True)
+                else:
+                    json.dump(config_data, f, indent=2, ensure_ascii=False)
+            
+            if has_existing_cache:
+                Logger.success(f"性能调优结果已更新到配置文件: {self.config_file_path}")
+            else:
+                Logger.success(f"性能调优结果已添加到配置文件: {self.config_file_path}")
+        except Exception as e:
+            Logger.warning(f"保存性能调优结果失败: {e}")
     
     def benchmark_optimizations(self) -> Dict[str, Any]:
         """
@@ -920,6 +1456,17 @@ class PerformanceAutoTuner:
         Returns:
             最优配置字典
         """
+        # 检查是否有缓存的结果
+        cached_results = self._load_cached_results()
+        if cached_results:
+            best_config = cached_results.get('best_config', {})
+            if best_config:
+                Logger.section("使用缓存的性能配置")
+                Logger.info(f"配置名称: {best_config.get('name', 'N/A')}")
+                Logger.info(f"描述: {best_config.get('description', 'N/A')}")
+                self._apply_config(best_config)
+                return best_config
+        
         Logger.section("性能自动调优")
         Logger.info("正在测试不同优化配置...")
         
@@ -1028,6 +1575,9 @@ class PerformanceAutoTuner:
                 'best_config': best_result['config'],
                 'all_results': results
             }
+            
+            # 保存结果到配置文件
+            self._save_results_to_config(best_result['config'])
             
             return best_result['config']
         else:
@@ -1384,6 +1934,7 @@ class MLSharpApp:
         # 初始化 GPU
         import torch
         self.gpu_manager = GPUManager(self.gpu_config, self.args)
+        self.gpu_manager.app_config = self.app_config
         self.device = self.gpu_manager.initialize()
         
         # 加载模型
@@ -1410,15 +1961,91 @@ class MLSharpApp:
             self.metrics_manager.set_gpu_info(0, self.gpu_config.name, self.gpu_config.vendor)
         self.metrics_manager.set_input_size(*self.args.input_size)
         
+        # 初始化 Redis 缓存（如果指定）
+        self.redis_cache = None
+        if self.args.redis_url:
+            self.redis_cache = RedisCacheManager(redis_url=self.args.redis_url)
+            if self.redis_cache.enabled:
+                Logger.success(f"Redis 缓存已启用: {self.args.redis_url}")
+        
+        # 初始化 Webhook 管理器（如果启用）
+        self.webhook_manager = None
+        if self.args.enable_webhook:
+            self.webhook_manager = WebhookManager(enabled=True)
+            Logger.success("Webhook 通知已启用")
+        
         # 创建 FastAPI 应用
         self.app = self._create_app()
         # 使用 ProcessPoolExecutor 替代 ThreadPoolExecutor 以避免 GIL 限制
         from concurrent.futures import ProcessPoolExecutor
         self.executor = ProcessPoolExecutor(max_workers=min(4, os.cpu_count()))
     
+    # ================= Pydantic 模型定义 =================
+    
+    class PredictResponse(BaseModel):
+        """预测响应模型"""
+        status: str = Field(..., description="请求状态 (success/error)")
+        url: str = Field(..., description="生成的 PLY 文件下载地址")
+        processing_time: float = Field(..., description="处理时间（秒）")
+        task_id: str = Field(..., description="任务 ID")
+    
+    class HealthResponse(BaseModel):
+        """健康检查响应模型"""
+        status: str = Field(..., description="服务状态 (healthy/unhealthy)")
+        gpu_available: bool = Field(..., description="GPU 是否可用")
+        gpu_vendor: str = Field(..., description="GPU 厂商 (NVIDIA/AMD/Intel)")
+        gpu_name: str = Field(..., description="GPU 型号名称")
+    
+    class GPUInfo(BaseModel):
+        """GPU 信息模型"""
+        available: bool = Field(..., description="GPU 是否可用")
+        vendor: str = Field(..., description="GPU 厂商")
+        name: str = Field(..., description="GPU 型号")
+        count: int = Field(..., description="GPU 数量")
+        memory_mb: float = Field(..., description="当前 GPU 内存使用量（MB）")
+    
+    class StatsResponse(BaseModel):
+        """系统统计响应模型"""
+        gpu: "MLSharpApp.GPUInfo" = Field(..., description="GPU 信息")
+    
+    class CacheStatsResponse(BaseModel):
+        """缓存统计响应模型"""
+        enabled: bool = Field(..., description="缓存是否启用")
+        size: int = Field(..., description="当前缓存条目数")
+        max_size: int = Field(..., description="最大缓存条目数")
+        hits: int = Field(..., description="缓存命中次数")
+        misses: int = Field(..., description="缓存未命中次数")
+        hit_rate: float = Field(..., description="缓存命中率（百分比）")
+    
+    class CacheClearResponse(BaseModel):
+        """缓存清空响应模型"""
+        status: str = Field(..., description="操作状态")
+        message: str = Field(..., description="操作消息")
+    
+    class ErrorResponse(BaseModel):
+        """统一错误响应模型"""
+        error: str = Field(..., description="错误类型")
+        message: str = Field(..., description="错误消息")
+        status_code: int = Field(..., description="HTTP 状态码")
+        path: str = Field(..., description="请求路径")
+        timestamp: str = Field(..., description="错误发生时间（ISO 8601 格式）")
+    
+    # ================= 错误处理器 =================
+    
+    def _create_error_response(self, error: str, message: str, status_code: int, path: str) -> Dict[str, Any]:
+        """创建标准错误响应"""
+        from datetime import datetime
+        return {
+            "error": error,
+            "message": message,
+            "status_code": status_code,
+            "path": path,
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        }
+    
     def _create_app(self):
         """创建 FastAPI 应用"""
-        from fastapi import FastAPI, UploadFile, File
+        from fastapi import FastAPI, UploadFile, File, APIRouter, Body
         from fastapi.responses import FileResponse, JSONResponse
         from fastapi.staticfiles import StaticFiles
         from fastapi.middleware.cors import CORSMiddleware
@@ -1426,11 +2053,14 @@ class MLSharpApp:
         app = FastAPI(
             title="MLSharp 3D Maker API",
             description="基于 Apple SHaRP 模型的 3D 高斯泼溅生成工具",
-            version="7.0",
+            version="9.0",
             docs_url="/docs",
             redoc_url="/redoc",
             openapi_url="/openapi.json"
         )
+        
+        # 创建 v1 API 路由
+        v1_router = APIRouter(prefix="/v1", tags=["v1"])
         
         app.add_middleware(
             CORSMiddleware,
@@ -1441,12 +2071,56 @@ class MLSharpApp:
         
         app.mount("/files", StaticFiles(directory=self.app_config.temp_dir), name="files")
         
+        # ================= 异常处理器 =================
+        
+        @app.exception_handler(Exception)
+        async def general_exception_handler(request, exc):
+            """通用异常处理器"""
+            error_response = self._create_error_response(
+                error="InternalServerError",
+                message=str(exc),
+                status_code=500,
+                path=request.url.path
+            )
+            return JSONResponse(
+                status_code=500,
+                content=error_response
+            )
+        
+        @app.exception_handler(404)
+        async def not_found_handler(request, exc):
+            """404 异常处理器"""
+            error_response = self._create_error_response(
+                error="NotFound",
+                message="请求的资源不存在",
+                status_code=404,
+                path=request.url.path
+            )
+            return JSONResponse(
+                status_code=404,
+                content=error_response
+            )
+        
+        @app.exception_handler(422)
+        async def validation_error_handler(request, exc):
+            """422 验证异常处理器"""
+            error_response = self._create_error_response(
+                error="ValidationError",
+                message="请求参数验证失败",
+                status_code=422,
+                path=request.url.path
+            )
+            return JSONResponse(
+                status_code=422,
+                content=error_response
+            )
+        
         @app.get("/", tags=["UI"])
         async def read_index():
             """访问 Web 界面"""
             return FileResponse(os.path.join(self.app_config.base_dir, "viewer.html"))
         
-        @app.post("/api/predict", tags=["Prediction"])
+        @v1_router.post("/predict", response_model=MLSharpApp.PredictResponse, tags=["Prediction"])
         async def predict(file: UploadFile = File(..., description="上传的图片文件 (JPG格式)")):
             """从单张图片生成 3D 模型
             
@@ -1461,7 +2135,7 @@ class MLSharpApp:
             """
             return await self._handle_predict(file)
         
-        @app.get("/api/health", tags=["System"])
+        @v1_router.get("/health", response_model=MLSharpApp.HealthResponse, tags=["System"])
         async def health_check():
             """健康检查端点
             
@@ -1480,7 +2154,7 @@ class MLSharpApp:
                 "gpu_name": self.gpu_config.name
             }
         
-        @app.get("/api/stats", tags=["System"])
+        @v1_router.get("/stats", response_model=MLSharpApp.StatsResponse, tags=["System"])
         async def get_stats():
             """获取系统统计信息
             
@@ -1510,7 +2184,7 @@ class MLSharpApp:
                     pass
             return stats
         
-        @app.get("/api/cache", tags=["System"])
+        @v1_router.get("/cache", response_model=MLSharpApp.CacheStatsResponse, tags=["System"])
         async def get_cache_stats():
             """获取缓存统计信息
             
@@ -1526,7 +2200,7 @@ class MLSharpApp:
             """
             return self.model_manager.cache_manager.get_stats()
         
-        @app.post("/api/cache/clear", tags=["System"])
+        @v1_router.post("/cache/clear", response_model=MLSharpApp.CacheClearResponse, tags=["System"])
         async def clear_cache():
             """清空缓存
             
@@ -1537,7 +2211,91 @@ class MLSharpApp:
                 - message: 操作消息
             """
             self.model_manager.cache_manager.clear()
+            if self.redis_cache and self.redis_cache.enabled:
+                self.redis_cache.clear()
             return {"status": "success", "message": "缓存已清空"}
+        
+        @v1_router.get("/webhooks", tags=["Webhook"])
+        async def list_webhooks():
+            """获取所有已注册的 Webhook
+            
+            返回所有已注册的 Webhook 列表。
+            
+            返回:
+                - enabled: Webhook 是否启用
+                - webhooks: Webhook 字典（事件类型 -> URL）
+            """
+            if not self.webhook_manager:
+                return {
+                    "enabled": False,
+                    "webhooks": {},
+                    "message": "Webhook 未启用"
+                }
+            return {
+                "enabled": self.webhook_manager.enabled,
+                "webhooks": self.webhook_manager.webhooks
+            }
+        
+        @v1_router.post("/webhooks", tags=["Webhook"])
+        async def register_webhook(webhook_data: Dict[str, str] = Body(..., examples={
+            "example": {
+                "event_type": "task_completed",
+                "url": "https://example.com/webhook/completed"
+            }
+        })):
+            """注册 Webhook
+            
+            注册一个新的 Webhook 用于接收事件通知。
+            
+            - **event_type**: 事件类型（task_completed, task_failed）
+            - **url**: Webhook URL
+            
+            返回:
+                - status: 操作状态
+                - message: 操作消息
+            """
+            if not self.webhook_manager:
+                return {
+                    "status": "error",
+                    "message": "Webhook 未启用"
+                }
+            event_type = webhook_data.get("event_type")
+            url = webhook_data.get("url")
+            
+            if not event_type or not url:
+                return {
+                    "status": "error",
+                    "message": "缺少必要参数: event_type 和 url"
+                }
+            
+            self.webhook_manager.register_webhook(event_type, url)
+            return {
+                "status": "success",
+                "message": f"Webhook 已注册: {event_type} -> {url}"
+            }
+        
+        @v1_router.delete("/webhooks/{event_type}", tags=["Webhook"])
+        async def unregister_webhook(event_type: str):
+            """注销 Webhook
+            
+            注销指定事件类型的 Webhook。
+            
+            - **event_type**: 事件类型
+            
+            返回:
+                - status: 操作状态
+                - message: 操作消息
+            """
+            if not self.webhook_manager:
+                return {
+                    "status": "error",
+                    "message": "Webhook 未启用"
+                }
+            self.webhook_manager.unregister_webhook(event_type)
+            return {
+                "status": "success",
+                "message": f"Webhook 已注销: {event_type}"
+            }
         
         @app.get("/metrics", tags=["Monitoring"])
         async def metrics():
@@ -1586,9 +2344,12 @@ class MLSharpApp:
                 return response
             finally:
                 # 减少活跃任务计数
-                if request.url.path == "/api/predict":
+                if request.url.path == "/api/predict" or request.url.path == "/v1/predict":
                     current_tasks = self.metrics_manager.active_tasks._value.get() if self.metrics_manager.active_tasks._value else 1
                     self.metrics_manager.set_active_tasks(max(0, current_tasks - 1))
+        
+        # 注册 v1 路由
+        app.include_router(v1_router)
         
         return app
     
@@ -1622,6 +2383,36 @@ class MLSharpApp:
             if width > 4096 or height > 4096:
                 Logger.warning(f"[Task {task_id}] 图片尺寸过大 ({width}x{height}),可能导致性能问题")
             
+            # 检查 Redis 缓存
+            if self.redis_cache and self.redis_cache.enabled:
+                cached_result = self.redis_cache.get(image, f_px)
+                if cached_result is not None:
+                    # 使用缓存结果保存 PLY
+                    output_ply_path = os.path.join(output_dir, "output.ply")
+                    save_start = time.time()
+                    await asyncio.to_thread(save_ply, cached_result, f_px, (height, width), output_ply_path)
+                    save_time = time.time() - save_start
+                    Logger.info(f"[Task {task_id}] 缓存命中! PLY保存完成,耗时: {save_time:.2f}s")
+                    
+                    # 重命名
+                    final_ply = os.path.join(task_dir, "output.ply")
+                    await asyncio.to_thread(os.rename, output_ply_path, final_ply)
+                    
+                    elapsed_time = time.time() - start_time
+                    Logger.info(f"[Task {task_id}] 处理完成（缓存）,总耗时: {elapsed_time:.2f}秒")
+                    
+                    # 记录预测指标
+                    self.metrics_manager.record_predict_request("success", elapsed_time)
+                    self.metrics_manager.record_predict_stage("total", elapsed_time)
+                    
+                    download_url = f"/files/{task_id}/output.ply"
+                    
+                    # 发送 Webhook 通知（任务完成）
+                    if self.webhook_manager:
+                        await self.webhook_manager.notify_task_completed(task_id, download_url, elapsed_time)
+                    
+                    return {"status": "success", "url": download_url, "processing_time": elapsed_time, "task_id": task_id}
+            
             # 预测 - GPU 推理在单独线程中执行
             Logger.info(f"[Task {task_id}] 开始推理...")
             inference_start = time.time()
@@ -1631,6 +2422,11 @@ class MLSharpApp:
             inference_time = time.time() - inference_start
             Logger.info(f"[Task {task_id}] 推理完成,耗时: {inference_time:.2f}秒")
             self.metrics_manager.record_predict_stage("inference", inference_time)
+            
+            # 保存到 Redis 缓存
+            if self.redis_cache and self.redis_cache.enabled:
+                self.redis_cache.set(image, f_px, gaussians, ttl=3600)
+                Logger.info(f"[Task {task_id}] 结果已缓存到 Redis")
             
             # 保存 PLY - 使用 asyncio.to_thread
             output_ply_path = os.path.join(output_dir, "output.ply")
@@ -1652,7 +2448,12 @@ class MLSharpApp:
             self.metrics_manager.record_predict_stage("total", elapsed_time)
             
             download_url = f"/files/{task_id}/output.ply"
-            return {"status": "success", "url": download_url, "processing_time": elapsed_time}
+            
+            # 发送 Webhook 通知（任务完成）
+            if self.webhook_manager:
+                await self.webhook_manager.notify_task_completed(task_id, download_url, elapsed_time)
+            
+            return {"status": "success", "url": download_url, "processing_time": elapsed_time, "task_id": task_id}
             
         except RuntimeError as e:
             if "out of memory" in str(e).lower():
@@ -1669,6 +2470,11 @@ class MLSharpApp:
             Logger.error(f"[Task {task_id}] 处理失败: {e}")
             elapsed_time = time.time() - start_time
             self.metrics_manager.record_predict_request("error", elapsed_time)
+            
+            # 发送 Webhook 通知（任务失败）
+            if self.webhook_manager:
+                await self.webhook_manager.notify_task_failed(task_id, str(e))
+            
             return JSONResponse({
                 "status": "error",
                 "message": f"处理失败: {str(e)}",
