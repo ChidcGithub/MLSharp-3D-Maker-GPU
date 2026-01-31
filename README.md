@@ -41,29 +41,7 @@
 ## 项目概述
 
 MLSharp-3D-Maker 是一个基于 Apple ml-sharp 模型的 3D 高斯泼溅（3D Gaussian Splatting）生成工具，可以从单张照片生成高质量的 3D 模型。
-
-### 项目完成度
-
-| 模块      | 状态  | 完成度  | 说明                             |
-|---------|-----|------|--------------------------------|
-| 核心功能    | 完成  | 100% | 图像到 3D 模型转换                    |
-| GPU 加速  | 完成  | 100% | NVIDIA/AMD/Intel/Snapdragon 支持 |
-| 配置管理    | 完成  | 100% | 命令行 + 配置文件                     |
-| 日志系统    | 完成  | 100% | loguru 专业日志                    |
-| 异步处理    | 完成  | 100% | ProcessPoolExecutor            |
-| 单元测试    | 完成  | 90%  | 核心类测试覆盖                        |
-| API 接口  | 完成  | 100% | 预测 + 健康检查 + 缓存管理               |
-| 监控指标    | 完成  | 90%  | Prometheus 集成 + 性能监控           |
-| 推理缓存    | 完成  | 100% | LRU 缓存 + Redis 分布式缓存           |
-| 性能自动调优  | 完成  | 100% | 智能基准测试 + 最优配置选择                |
-| Webhook | 完成  | 100% | 异步通知 + 事件管理                    |
-| 文档      | 完成  | 100% | README + 配置示例 + API 文档         |
-| API 文档  | 完成  | 100% | Swagger/OpenAPI + 版本控制         |
-| 认证授权    | 待开发 | 0%   | API Key/JWT                    |
-
-**总体完成度: 100%+0%**
-
----
+此分支为此项目能够在Android及Apple平台上运行提供基础。
 
 ## 项目结构及更新
 
@@ -102,15 +80,6 @@ MLSharp-3D-Maker-GPU-by-Chidc/
 - **智能回退** - 检测到 Snapdragon GPU 时自动使用 CPU 模式
 - **平台支持** - Windows/Android 平台识别
 - **文档更新** - 添加 Snapdragon GPU 支持说明和限制
-
-**分布式缓存与异步通知 v9.0**
-- **Redis 缓存** - 实现基于 Redis 的分布式缓存支持
-- **Webhook 通知** - 添加异步 Webhook 通知功能
-- **任务完成通知** - 支持 task_completed 和 task_failed 事件
-- **缓存增强** - 支持 Redis 和本地缓存混合使用
-- **Webhook API** - 添加 Webhook 注册和管理 API
-- **新增依赖** - pydantic、redis、httpx
-- **项目完成度** - 从 98% 提升到 100%
 
 </details>
 
@@ -1985,90 +1954,7 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 <details>
 <summary><b>点击展开查看版本历史</b></summary>
 
-### v9.0 (2026-01-31)
-- Redis 分布式缓存支持
-- Webhook 异步通知功能
-- 任务完成和失败通知
-- 缓存混合使用（Redis + 本地）
-- Webhook 注册和管理 API
-- 新增依赖：pydantic、redis、httpx
-- 项目完成度达到 100%
-
-### v8.0 (2026-01-31)
-- API 版本控制（v1）
-- Pydantic 数据验证
-- 统一错误响应模型
-- Swagger/OpenAPI 文档
-- 完整的 API 使用文档
-- 项目完成度提升至 98%
-
-### v7.5 (2026-01-29)
-- 性能自动调优
-- 智能基准测试
-- 最优配置选择
-- 性能提升 30-50%
-
-### v7.4 (2026-01-28)
-- 推理缓存功能
-- 智能哈希缓存键
-- LRU 淘汰算法
-- 缓存统计监控
-
-### v7.3 (2026-01-27)
-- 梯度检查点
-- 显存优化 30-50%
-- 智能内存管理
-
-### v7.2 (2026-01-26)
-- Prometheus 监控集成
-- 完整的监控指标
-- GPU 资源监控
-
-### v7.1 (2026-01-25)
-- 输入尺寸参数
-- 自动验证和调整
-- 最大限制 1536x1536
-
-### v7.0 (2026-01-24)
-- 异步优化升级
-- ProcessPoolExecutor
-- 健康检查和统计 API
-- 并发处理能力提升 30-50%
-
-### v6.2 (2026-01-23)
-- 日志系统升级
-- loguru 集成
-- 结构化日志
-- 文件日志轮转
-
-### v6.1 (2026-01-22)
-- 配置文件支持
-- YAML 和 JSON 格式
-- 灵活配置管理
-
-### v6.0 (2026-01-21)
-- 代码重构
-- 面向对象设计
-- 管理器模式
-- 类型提示完善
-
-### v5.0 (2026-01-24)
-- 全面兼容性升级
-- 支持 NVIDIA、AMD、Intel 显卡
-- 老旧 GPU 支持
-- Windows 11 兼容
-
-### v4.0 (2026-01-17)
-- 智能自动诊断程序（现已弃用）
-- GPU 兼容性修复
-- 日志系统（现已改进）
-- Unicode 编码修复
-
-### v3.0
-- GPU 混合精度推理（AMP）
-- cuDNN Benchmark 自动优化
-- TensorFloat32 矩阵乘法加速
-- CPU 多线程优化
+暂无
 
 </details>
 
@@ -2126,6 +2012,7 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
    - i18n 支持
    - 中英文界面
    - 可扩展语言包
+   - Google 系统优化
 
 2. **插件系统** - 可扩展架构
    - 自定义插件
@@ -2157,5 +2044,5 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 **如果这个项目对你有帮助，请给个 ⭐️ Star！**
 
 Modded with ❤️ by Chidc with CPU-Mode-Provider GemosDoDo
-README.md Verison Code **2601311936**
+README.md Verison Code **2601312022**
 </div>
