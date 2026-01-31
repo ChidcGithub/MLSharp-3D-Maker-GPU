@@ -38,7 +38,7 @@
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 ![Platform](https://img.shields.io/badge/Platform-Windows|Linux-lightgrey.svg)
 ![API](https://img.shields.io/badge/API-RESTful-blueviolet.svg)
-[![stars](https://img.shields.io/github/stars/chidcGithub/MLSharp-3D-Maker-GPU)]
+![stars](https://img.shields.io/github/stars/chidcGithub/MLSharp-3D-Maker-GPU)
 </div>
 
 # 使用说明
