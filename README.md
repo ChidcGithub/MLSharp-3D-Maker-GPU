@@ -35,12 +35,10 @@
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.128+-green.svg)
-![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)
-![CUDA](https://img.shields.io/badge/CUDA-11.8+-green.svg)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 ![Platform](https://img.shields.io/badge/Platform-Windows|Linux-lightgrey.svg)
-![GPU](https://img.shields.io/badge/GPU-NVIDIA|AMD|Intel-orange.svg)
 ![API](https://img.shields.io/badge/API-RESTful-blueviolet.svg)
+[![stars](https://img.shields.io/github/stars/chidcGithub/MLSharp-3D-Maker-GPU)]
 </div>
 
 # 使用说明
