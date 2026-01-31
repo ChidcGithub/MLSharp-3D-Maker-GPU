@@ -1,58 +1,33 @@
-# MLSharp-3D-Maker 配置文件
-# 支持的格式: YAML
-
-# 服务配置
-server:
-  host: "127.0.0.1"        # 服务主机地址
-  port: 8000               # 服务端口
-
-# 启动模式
-mode: "auto"               # 启动模式: auto, gpu, cpu, nvidia, amd
-
-# 浏览器配置
 browser:
-  auto_open: true          # 自动打开浏览器
-
-# GPU 优化配置
-gpu:
-  enable_amp: true         # 启用混合精度推理 (AMP)
-  enable_cudnn_benchmark: true  # 启用 cuDNN Benchmark
-  enable_tf32: true        # 启用 TensorFloat32
-
-# 日志配置
-logging:
-  level: "INFO"            # 日志级别: DEBUG, INFO, WARNING, ERROR
-  console: true            # 控制台输出
-  file: false              # 文件输出
-
-# 模型配置
-model:
-  checkpoint: "model_assets/sharp_2572gikvuh.pt"  # 模型权重路径
-  temp_dir: "temp_workspace"                     # 临时工作目录
-
-# 推理配置
-inference:
-  input_size: [1536, 1536]  # 输入图像尺寸 [宽度, 高度] (默认: 1536x1536)
-
-# 优化配置
-optimization:
-  gradient_checkpointing: false  # 启用梯度检查点（减少显存占用，但会略微降低推理速度）
-  checkpoint_segments: 3         # 梯度检查点分段数（暂未使用）
-
-# 缓存配置
+  auto_open: true
 cache:
-  enabled: true                  # 启用推理缓存（默认：启用）
-  size: 100                      # 缓存最大条目数（默认：100）
-
-# 监控配置
+  enabled: true
+  size: 100
+gpu:
+  enable_amp: true
+  enable_cudnn_benchmark: true
+  enable_tf32: true
+inference:
+  input_size:
+  - 1536
+  - 1536
+mode: auto
 monitoring:
-  enabled: true            # 启用监控
-  enable_gpu: true         # 启用 GPU 监控
-  metrics_path: "/metrics" # Prometheus 指标端点路径
-
-# 性能配置
-performance:
-  max_workers: 4           # 最大工作线程数
-  max_concurrency: 10      # 最大并发数
-  timeout_keep_alive: 30   # 保持连接超时(秒)
-  max_requests: 1000       # 最大请求数
+  enable_gpu: true
+  enabled: true
+  metrics_path: /metrics
+performance_cache:
+  best_config:
+    amp: false
+    cudnn_benchmark: false
+    description: 仅启用 TensorFloat32
+    name: 仅 TF32
+    tf32: true
+  gpu:
+    compute_capability: 89
+    name: NVIDIA GeForce RTX 4060 Laptop GPU
+    vendor: NVIDIA
+  last_test: '2026-01-31T04:59:43.901644+00:00'
+server:
+  host: 127.0.0.1
+  port: 8000

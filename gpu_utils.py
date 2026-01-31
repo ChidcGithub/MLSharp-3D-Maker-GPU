@@ -68,11 +68,47 @@ def check_rocm_available():
     except Exception:
         return False
 
+def check_adreno_available():
+    """检查 Adreno (Snapdragon) GPU 是否可用"""
+    try:
+        import torch
+        # Snapdragon GPU 通常通过 OpenCL/Vulkan，而不是 CUDA
+        # 检查是否为 Android 环境
+        if hasattr(torch, 'backends') and hasattr(torch.backends, 'opencl'):
+            if torch.backends.opencl.is_available():
+                return True
+        # 检查是否有 qnn 或 snpe 相关模块
+        try:
+            import importlib
+            if importlib.util.find_spec('qnn') or importlib.util.find_spec('snpe'):
+                return True
+        except:
+            pass
+        return False
+    except Exception:
+        return False
+
+
 def get_gpu_info():
     """获取 GPU 详细信息"""
     try:
         import torch
         if not torch.cuda.is_available():
+            # 检查是否为 Snapdragon GPU (通过 OpenCL)
+            if check_adreno_available():
+                return {
+                    'name': 'Snapdragon Adreno GPU',
+                    'count': 1,
+                    'cuda_version': None,
+                    'is_rocm': False,
+                    'is_adreno': True,
+                    'vendor': 'Qualcomm',
+                    'compute_capability': 0,
+                    'major': 0,
+                    'minor': 0,
+                    'memory_gb': 0,
+                    'multi_processor_count': 0,
+                }
             return None
         
         gpu_info = {
@@ -80,6 +116,7 @@ def get_gpu_info():
             'count': torch.cuda.device_count(),
             'cuda_version': torch.version.cuda,
             'is_rocm': check_rocm_available(),
+            'is_adreno': False,
         }
         
         props = torch.cuda.get_device_properties(0)
@@ -101,11 +138,16 @@ def get_gpu_vendor(gpu_name=None):
         gpu_info = get_gpu_info()
         if gpu_info:
             gpu_name = gpu_info.get('name', '')
+            # 直接从 gpu_info 检查 is_adreno 标记
+            if gpu_info.get('is_adreno'):
+                return 'Qualcomm'
         else:
             return 'Unknown'
     
     name_lower = gpu_name.lower()
-    if 'nvidia' in name_lower or 'geforce' in name_lower or 'quadro' in name_lower or 'tesla' in name_lower or 'rtx' in name_lower or 'gtx' in name_lower:
+    if 'snapdragon' in name_lower or 'adreno' in name_lower or 'qualcomm' in name_lower:
+        return 'Qualcomm'
+    elif 'nvidia' in name_lower or 'geforce' in name_lower or 'quadro' in name_lower or 'tesla' in name_lower or 'rtx' in name_lower or 'gtx' in name_lower:
         return 'NVIDIA'
     elif 'amd' in name_lower or 'radeon' in name_lower or 'rx' in name_lower:
         return 'AMD'
