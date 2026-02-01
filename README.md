@@ -24,8 +24,8 @@
 
 # MLSharp 3D Maker
 
-### Codename: MLSharp
 ### Tip: 主分支将逐步移除对Snapdragon的支持，可移步至针对于Snapdragon进行特定优化的分支。
+### Codename: MLSharp
 
 <div align="center">
 
