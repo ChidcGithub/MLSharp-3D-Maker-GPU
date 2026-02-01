@@ -41,13 +41,14 @@
 ## 项目概述
 
 MLSharp-3D-Maker 是一个基于 Apple ml-sharp 模型的 3D 高斯泼溅（3D Gaussian Splatting）生成工具，可以从单张照片生成高质量的 3D 模型。
+### Tip: 主分支将逐步移除对Snapdragon的支持，可移步至针对于Snapdragon进行特定优化的分支。
 
 ### 项目完成度
 
 | 模块      | 状态  | 完成度  | 说明                             |
 |---------|-----|------|--------------------------------|
 | 核心功能    | 完成  | 100% | 图像到 3D 模型转换                    |
-| GPU 加速  | 完成  | 100% | NVIDIA/AMD/Intel/Snapdragon(Preview) 支持 |
+| GPU 加速  | 完成  | 100% | NVIDIA/AMD/Intel/Snapdragon 支持 |
 | 配置管理    | 完成  | 100% | 命令行 + 配置文件                     |
 | 日志系统    | 完成  | 100% | loguru 专业日志                    |
 | 异步处理    | 完成  | 100% | ProcessPoolExecutor            |
@@ -60,6 +61,7 @@ MLSharp-3D-Maker 是一个基于 Apple ml-sharp 模型的 3D 高斯泼溅（3D G
 | 文档      | 完成  | 100% | README + 配置示例 + API 文档         |
 | API 文档  | 完成  | 100% | Swagger/OpenAPI + 版本控制         |
 | 认证授权    | 待开发 | 0%   | API Key/JWT                    |
+| GPU 内存回收 | 完成  | 100% | 自动垃圾回收 + 智能内存管理 + 监控   |
 
 **总体完成度: 100%+0%**
 
@@ -76,6 +78,9 @@ MLSharp-3D-Maker-GPU-by-Chidc/
 ├── gpu_utils.py                  # GPU 工具模块
 ├── logger.py                     # 日志模块
 ├── metrics.py                    # 监控指标模块 ⭐
+├── test_gpu_gc.py                # GPU 内存回收测试脚本 ⭐
+├── demo_gpu_gc.py                # GPU 内存回收演示脚本 ⭐
+├── GPU_MEMORY_GC_README.md       # GPU 内存回收功能文档 ⭐
 ├── optimistic.md                 # 性能优化方案文档 ⭐
 ├── Start.bat                     # Windows 启动脚本
 ├── Start.ps1                     # PowerShell 启动脚本
@@ -93,24 +98,27 @@ MLSharp-3D-Maker-GPU-by-Chidc/
 <details>
 <summary><b>点击展开查看最新更新详情</b></summary>
 
-### 最新更新（2026-01-31）
+### 最新更新（2026-02-01）
+
+**GPU 内存自动回收 v10.0**
+- **内存信息查询** - 实时获取 GPU 显存使用情况（总量、已用、可用、使用率）
+- **缓存清理** - 自动清理 PyTorch 预留但未使用的显存
+- **强制垃圾回收** - 完整的垃圾回收流程（清理缓存 → 同步 GPU → Python GC → 再次清理）
+- **智能内存回收** - 当显存使用率超过阈值时自动清理（默认 85%）
+- **自动内存监控** - 后台线程定期检查并自动清理显存（默认每 30 秒）
+- **命令行参数** - 支持 `--enable-auto-gc`、`--auto-gc-interval`、`--auto-gc-threshold` 等参数
+- **配置文件支持** - 在 config.yaml 中配置内存回收策略
+- **性能优化** - 防止显存泄漏，提高系统稳定性
+- **日志记录** - 详细的内存清理日志，便于调试
+- **测试脚本** - 提供 `test_gpu_gc.py` 和 `demo_gpu_gc.py` 用于测试和演示
 
 **Snapdragon GPU 适配 v9.1**
-- **Adreno GPU 检测** - 自动检测 Snapdragon/Adreno 系列 GPU **(Preview)**
+- **Adreno GPU 检测** - 自动检测 Snapdragon/Adreno 系列 GPU
 - **Qualcomm 模式** - 新增 `--mode qualcomm` 启动模式
 - **ONNX Runtime 支持** - 添加 ONNX Runtime + DirectML 加速方案
 - **智能回退** - 检测到 Snapdragon GPU 时自动使用 CPU 模式
 - **平台支持** - Windows/Android 平台识别
 - **文档更新** - 添加 Snapdragon GPU 支持说明和限制
-
-**分布式缓存与异步通知 v9.0**
-- **Redis 缓存** - 实现基于 Redis 的分布式缓存支持
-- **Webhook 通知** - 添加异步 Webhook 通知功能
-- **任务完成通知** - 支持 task_completed 和 task_failed 事件
-- **缓存增强** - 支持 Redis 和本地缓存混合使用
-- **Webhook API** - 添加 Webhook 注册和管理 API
-- **新增依赖** - pydantic、redis、httpx
-- **项目完成度** - 从 98% 提升到 100%
 
 </details>
 
@@ -126,7 +134,7 @@ MLSharp-3D-Maker-GPU-by-Chidc/
 ```
 
 **功能特点：**
-- **自动检测**: GPU 类型（NVIDIA/AMD/Intel/Snapdragon(Preview)）、环境配置、依赖库
+- **自动检测**: GPU 类型（NVIDIA/AMD/Intel/Snapdragon）、环境配置、依赖库
 - **智能推荐**: 根据显卡自动推荐最佳启动脚本
 - **全面诊断**: 100+ 错误处理，智能识别问题
 - **解决方案**: 每个错误都提供详细的解决建议
@@ -168,7 +176,7 @@ python app.py --no-browser
 pip install -r requirements.txt
 ```
 
-### Snapdragon GPU 加速 (Preview)（可选）
+### Snapdragon GPU 加速（可选）
 
 如果使用 Snapdragon GPU（如 Snapdragon X Elite），安装 ONNX Runtime GPU 版本：
 
@@ -215,6 +223,12 @@ python -c "import onnxruntime as ort; print(ort.get_available_providers())"
 | `--enable-auto-tune`   |      | flag   | false          | 启用性能自动调优               |
 | `--redis-url`          |      | string | -              | Redis 连接 URL（分布式缓存）    |
 | `--enable-webhook`     |      | flag   | false          | 启用 Webhook 异步通知        |
+| `--enable-auto-gc`     |      | flag   | true           | 启用 GPU 自动垃圾回收（默认：启用）    |
+| `--no-auto-gc`         |      | flag   | false          | 禁用 GPU 自动垃圾回收               |
+| `--auto-gc-interval`   |      | int    | `30`           | GPU 自动垃圾回收检查间隔（秒）        |
+| `--auto-gc-threshold`  |      | float  | `85.0`         | GPU 显存使用率阈值，超过时自动清理（百分比）|
+| `--enable-smart-reclaim` |     | flag   | true           | 启用智能内存回收（默认：启用）        |
+| `--no-smart-reclaim`   |      | flag   | false          | 禁用智能内存回收                   |
 
 ### 启动模式 (--mode)
 
@@ -370,7 +384,7 @@ python app.py -h
 | Iris Xe | 集成显卡   | ⚠️ 仅 CPU 模式 |
 | UHD     | 集成显卡   | ⚠️ 仅 CPU 模式 |
 
-### Qualcomm/Snapdragon GPU (Preview)
+### Qualcomm/Snapdragon GPU
 | 架构     | 显卡系列       | 支持状态      | 说明                             |
 |--------|------------|-----------|--------------------------------|
 | Adreno | 600/700 系列 | ⚠️ CPU 模式 | 检测到 Snapdragon GPU，使用 CPU 模式运行 |
@@ -1985,6 +1999,15 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 <details>
 <summary><b>点击展开查看版本历史</b></summary>
 
+### v9.0 (2026-01-31)
+- Redis 分布式缓存支持
+- Webhook 异步通知功能
+- 任务完成和失败通知
+- 缓存混合使用（Redis + 本地）
+- Webhook 注册和管理 API
+- 新增依赖：pydantic、redis、httpx
+- 项目完成度达到 100%
+
 ### v8.0 (2026-01-31)
 - API 版本控制（v1）
 - Pydantic 数据验证
@@ -2070,7 +2093,7 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 - **后端框架**: FastAPI + Uvicorn
 - **深度学习**: PyTorch + Apple ml-sharp 模型
 - **3D 渲染**: 3D Gaussian Splatting
-- **GPU 加速**: CUDA (NVIDIA) / ROCm (AMD) / ONNX (Snapdragon) **Preview**
+- **GPU 加速**: CUDA (NVIDIA) / ROCm (AMD)
 - **CPU 优化**: OpenMP / MKL
 - **日志系统**: Loguru
 - **监控指标**: Prometheus + Prometheus Client
@@ -2135,6 +2158,14 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 
 欢迎提交 **Issue** 和 **Pull Request！**
 
+---
+
+## 📚 相关文档
+
+- [配置文件示例](config.yaml) - YAML 格式配置文件
+- [API 文档](http://127.0.0.1:8000/docs) - Swagger/OpenAPI 自动生成的 API 文档
+
+---
 
 ## 联系方式
 
@@ -2148,5 +2179,5 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 **如果这个项目对你有帮助，请给个 ⭐️ Star！**
 
 Modded with ❤️ by Chidc with CPU-Mode-Provider GemosDoDo
-README.md Verison Code **2601311951**
+README.md Verison Code **2601311936**
 </div>
