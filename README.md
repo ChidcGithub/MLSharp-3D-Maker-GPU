@@ -110,7 +110,6 @@ MLSharp-3D-Maker-GPU-by-Chidc/
 - **配置文件支持** - 在 config.yaml 中配置内存回收策略
 - **性能优化** - 防止显存泄漏，提高系统稳定性
 - **日志记录** - 详细的内存清理日志，便于调试
-- **测试脚本** - 提供 `test_gpu_gc.py` 和 `demo_gpu_gc.py` 用于测试和演示
 
 **Snapdragon GPU 适配 v9.1**
 - **Adreno GPU 检测** - 自动检测 Snapdragon/Adreno 系列 GPU
