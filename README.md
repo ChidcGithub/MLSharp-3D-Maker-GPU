@@ -23,7 +23,9 @@
 ```                                                                                                                                                                     
 
 # MLSharp 3D Maker
+
 ### Codename: MLSharp
+### Tip: 主分支将逐步移除对Snapdragon的支持，可移步至针对于Snapdragon进行特定优化的分支。
 
 <div align="center">
 
@@ -42,7 +44,6 @@
 ## 项目概述
 
 MLSharp-3D-Maker 是一个基于 Apple ml-sharp 模型的 3D 高斯泼溅（3D Gaussian Splatting）生成工具，可以从单张照片生成高质量的 3D 模型。
-### Tip: 主分支将逐步移除对Snapdragon的支持，可移步至针对于Snapdragon进行特定优化的分支。
 
 ### 项目完成度
 
