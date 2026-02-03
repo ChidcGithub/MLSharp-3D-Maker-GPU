@@ -28,6 +28,8 @@
 
 ## Tip: 此分支为此项目能够在搭载骁龙芯片的平台上运行提供基础。
 ### 后续计划添加更多芯片及NPU快速推理支持
+#### 由于兼容性问题，正式版本发布可能需要等待至少1个月，也可以进行[Pull requests](https://github.com/ChidcGithub/MLSharp-3D-Maker-GPU/pulls)来修改。
+#### 目前主要进程: 将Torch模型转为在骁龙平台上运行更佳的ONNX模型。
 ### Codename:Ansharp
 ---
 
@@ -42,12 +44,6 @@
 [![stars](https://img.shields.io/github/stars/chidcGithub/MLSharp-3D-Maker-GPU)](https://github.com/chidcGithub/MLSharp-3D-Maker-GPU)
 [![GitHub Release (including pre-releases)](https://img.shields.io/github/v/release/chidcGithub/MLSharp-3D-Maker-GPU?include_prereleases&label=latest)](https://github.com/chidcGithub/MLSharp-3D-Maker-GPU/releases)
 </div>
-
-# 使用说明
-
-## 项目概述
-
-MLSharp-3D-Maker 是一个基于 Apple ml-sharp 模型的 3D 高斯泼溅（3D Gaussian Splatting）生成工具，可以从单张照片生成高质量的 3D 模型。
 
 # 使用说明
 
