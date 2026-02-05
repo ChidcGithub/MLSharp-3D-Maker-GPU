@@ -2122,12 +2122,6 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 
 ---
 
-<div align="center">
-
-**如果这个项目对你有帮助，请给个 ⭐️ Star！**
-
-Modded with ❤️ by Chidc with CPU-Mode-Provider GemosDoDo
-
 ## 版本号命名规则
 
 本项目采用 **[Month].[Day].[HHMM]** 格式的版本号命名规则：
@@ -2138,6 +2132,14 @@ Modded with ❤️ by Chidc with CPU-Mode-Provider GemosDoDo
   - 简洁明了，易于识别
   - 包含时间信息，便于追踪
   - 符合时间递增特性
+
+
+---
+<div align="center">
+
+**如果这个项目对你有帮助，请给个 ⭐️ Star！**
+
+Modded with ❤️ by Chidc with CPU-Mode-Provider GemosDoDo
 
 README.md Version Code **02.05.1910**
 </div>
