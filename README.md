@@ -263,5 +263,8 @@ android/app/src/main/assets/python/wheels/
 **如果这个项目对你有帮助，请给个 ⭐️ Star！**
 
 Modded with ❤️ by Chidc with CPU-Mode-Provider GemosDoDo
+
+---
+
 README.md Verison Code **2602052238**
 </div>
