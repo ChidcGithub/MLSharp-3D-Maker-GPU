@@ -1404,7 +1404,7 @@
             formData.append('file', file);
 
             try {
-                const response = await fetch('/api/predict', {
+                const response = await fetch('/v1/predict', {
                     method: 'POST',
                     body: formData
                 });
@@ -1425,7 +1425,7 @@
             } catch (err) {
                 clearInterval(timer);
                 console.error(err);
-                alert("Preview Mode: Backend not connected.\nUse '?url=...' to load external models.");
+                alert("Error: " + err.message + "\n\nPreview Mode: Backend not connected.\nUse '?url=...' to load external models.");
                 loadingSys.stop();
             }
         }

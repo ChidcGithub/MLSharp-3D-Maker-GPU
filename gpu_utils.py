@@ -68,6 +68,7 @@ def check_rocm_available():
     except Exception:
         return False
 
+
 def get_gpu_info():
     """获取 GPU 详细信息"""
     try:
