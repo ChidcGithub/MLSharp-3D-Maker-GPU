@@ -28,7 +28,7 @@
 
 ## Tip: 此分支为此项目能够在搭载骁龙芯片的平台上运行提供基础。
 ### 后续计划添加更多芯片及NPU快速推理支持
-#### 由于兼容性问题，正式版本发布可能需要等待至少1个月，也可以进行[Pull requests](https://github.com/ChidcGithub/MLSharp-3D-Maker-GPU/pulls)来修改。
+#### 由于兼容性问题，**Ansharp**正式版本发布可能需要等待**至少1个月**，也可以进行[Pull requests](https://github.com/ChidcGithub/MLSharp-3D-Maker-GPU/pulls)来修改。
 #### 目前主要进程: 适配后端代码; 保证后端代码与主分支功能相似
 #### 已完成的部分: 已转换模型到ONNX格式
 ### Codename:Ansharp
