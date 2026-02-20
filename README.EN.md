@@ -106,7 +106,7 @@ MLSharp-3D-Maker-GPU-by-Chidc/
 
 ### Latest Update (2026-02-20)
 
-**Logging and Error Handling Enhancement 02.20.1800**
+**Logging and Error Handling Enhancement 02.20.1425**
 - **Logging Style Enhancement** - Added color output, icons and detailed context information (filename, function name, line number)
 - **Diversified Logging Methods** - Added new methods like `styled_section`, `progress_info`, `performance`, `gpu_info`, `cache_info`
 - **Error Handling Enhancement** - Improved all empty `except:` clauses, replaced with specific exception handling
@@ -1141,21 +1141,15 @@ Welcome to submit **Issues** and **Pull Requests!**
 ---
 
 <div align="center">
+          
+### Version Number Naming Rule
+
+This project adopts the **[Month].[Day].[HHMM]** format version number naming rule:
+
 
 **If this project is helpful to you, please give a ⭐️ Star!**
 
 Modded with ❤️ by Chidc with CPU-Mode-Provider GemosDoDo
-
-## Version Number Naming Rule
-
-This project adopts the **[Month].[Day].[HHMM]** format version number naming rule:
-
-- **Format Description**: Month.Day.HourMinute (24-hour format)
-- **Example**: `02.05.1900` means February 5, 2026, 19:00
-- **Advantages**: 
-  - Concise and clear, easy to identify
-  - Contains time information, easy to track
-  - Follows time increment characteristics
 
 README.md Version Code **02.20.1800**
 </div>
