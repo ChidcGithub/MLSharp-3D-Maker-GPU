@@ -1,0 +1,38 @@
+browser:
+  auto_open: true
+cache:
+  enabled: true
+  size: 100
+gpu:
+  auto_gc_interval: 30
+  auto_gc_threshold: 85.0
+  enable_amp: true
+  enable_auto_gc: true
+  enable_cudnn_benchmark: true
+  enable_smart_reclaim: true
+  enable_tf32: true
+inference:
+  input_size:
+  - 1536
+  - 1536
+language: zh
+mode: auto
+monitoring:
+  enable_gpu: true
+  enabled: true
+  metrics_path: /metrics
+performance_cache:
+  best_config:
+    amp: false
+    cudnn_benchmark: true
+    description: 仅启用 cuDNN 自动调优
+    name: 仅 cuDNN Benchmark
+    tf32: false
+  gpu:
+    compute_capability: 89
+    name: NVIDIA GeForce RTX 4060 Laptop GPU
+    vendor: NVIDIA
+  last_test: '2026-02-20T06:00:17.560955+00:00'
+server:
+  host: 127.0.0.1
+  port: 8000

@@ -1,0 +1,1953 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3DGS Artistic Viewer</title>
+    <!-- 引入优雅的衬线字体 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            /* Palette: Art Gallery / Dark Luxury */
+            --bg-color: #121212;
+            --bg-gradient-center: #1a1a1a;
+            
+            /* 玻璃拟态：高透、极薄边框 */
+            --glass-surface: rgba(20, 20, 20, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-highlight: rgba(255, 255, 255, 0.05);
+            
+            /* 香槟金点缀 */
+            --accent-primary: #d4af37; 
+            --accent-glow: rgba(212, 175, 55, 0.15);
+            
+            --text-main: #e0e0e0;
+            --text-muted: #666;
+            
+            --font-serif: 'Cormorant Garamond', 'Noto Serif SC', serif;
+            --font-ui: 'Inter', 'Noto Serif SC', sans-serif;
+        }
+
+        body { 
+            margin: 0; overflow: hidden; background-color: var(--bg-color); 
+            font-family: var(--font-ui); color: var(--text-main); 
+            -webkit-font-smoothing: antialiased;
+            font-weight: 300;
+        }
+
+        #canvas-container { 
+            width: 100vw; height: 100vh; display: block; 
+            background: radial-gradient(circle at center, var(--bg-gradient-center) 0%, var(--bg-color) 80%);
+        }
+
+        /* --- UI 模块通用样式 --- */
+        .hud-panel {
+            position: absolute;
+            background: var(--glass-surface);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            padding: 16px 24px;
+            border-radius: 4px; /* 硬朗的圆角 */
+            transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+            pointer-events: auto;
+            z-index: 10;
+        }
+        
+        .hud-panel:hover {
+            background: rgba(30, 30, 30, 0.8);
+            border-color: rgba(255,255,255,0.15);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+
+        /* 隐藏 UI 时的状态 */
+        body.ui-hidden .hud-panel {
+            opacity: 0;
+            transform: translateY(20px);
+            pointer-events: none;
+        }
+        body.ui-hidden #top-header, body.ui-hidden #top-stats {
+            transform: translateY(-20px);
+        }
+        body.ui-hidden #watermark { opacity: 0; }
+
+        /* --- 1. 顶部标题 (左上) --- */
+        #top-header {
+            top: 30px; left: 30px;
+            background: transparent; border: none; padding: 0;
+            backdrop-filter: none; pointer-events: auto; /* Allow interaction for lang btn */
+            display: flex; flex-direction: column; align-items: flex-start;
+        }
+        h1 {
+            font-family: var(--font-serif); font-size: 2.2rem; font-weight: 400; margin: 0;
+            color: var(--accent-primary); letter-spacing: 1px; font-style: italic;
+            text-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        }
+        .header-row {
+            display: flex; align-items: center; gap: 12px; margin-top: 4px;
+        }
+        .subtitle {
+            font-size: 0.6rem; text-transform: uppercase; letter-spacing: 4px;
+            color: var(--text-muted); display: block;
+        }
+        /* 语言切换按钮 */
+        .lang-btn {
+            background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
+            color: var(--text-muted); font-size: 0.6rem; padding: 2px 6px;
+            border-radius: 2px; cursor: pointer; transition: all 0.3s;
+            font-family: var(--font-ui); letter-spacing: 1px;
+        }
+        .lang-btn:hover {
+            background: var(--accent-primary); color: #000; border-color: var(--accent-primary);
+        }
+
+        /* --- 2. 顶部状态 (右上) --- */
+        #top-stats {
+            top: 30px; right: 30px;
+            display: flex; gap: 30px;
+            background: transparent; border: none; padding: 0;
+            backdrop-filter: none; pointer-events: none;
+        }
+        .stat-item { text-align: right; }
+        .stat-value { font-family: var(--font-ui); font-size: 1.1rem; color: var(--text-main); font-weight: 300; display: block;}
+        .stat-label { font-size: 0.6rem; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; display: block;}
+
+        /* --- 3. 底部控制台 (底部中央) --- */
+        #control-deck {
+            bottom: 30px; left: 50%; transform: translateX(-50%);
+            display: flex; align-items: center; gap: 32px;
+            padding: 16px 32px;
+            border-radius: 50px; /* 胶囊形状 */
+            height: 50px; /* 固定高度 */
+            z-index: 20; /* 确保在 Flow Panel 之上 */
+        }
+        
+        .slider-group {
+            display: flex; flex-direction: column; gap: 4px;
+            width: 120px;
+            position: relative;
+        }
+        .slider-group label {
+            font-size: 0.6rem; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase;
+            position: absolute; top: -18px; left: 0; width: 100%; text-align: center;
+        }
+        input[type="range"] {
+            -webkit-appearance: none; width: 100%; height: 2px;
+            background: rgba(255,255,255,0.2); 
+            margin: 0; cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 10px; height: 10px;
+            background: var(--text-main); border-radius: 50%;
+            transition: transform 0.2s, background 0.2s;
+            margin-top: -4px; /* 居中 */
+        }
+        input[type="range"]::-webkit-slider-thumb:hover { 
+            transform: scale(1.5); background: var(--accent-primary); 
+        }
+        /* 轨道背景修正 */
+        input[type="range"]::-webkit-slider-runnable-track { height: 2px; background: transparent; }
+
+        .deck-divider { width: 1px; height: 24px; background: rgba(255,255,255,0.1); }
+
+        .icon-btn {
+            background: transparent; border: none; color: var(--text-main);
+            cursor: pointer; padding: 8px; border-radius: 50%;
+            transition: all 0.2s; display: flex; align-items: center; justify-content: center;
+        }
+        .icon-btn:hover { color: var(--accent-primary); background: rgba(255,255,255,0.05); }
+        .icon-btn.active { color: #000; background: var(--accent-primary); box-shadow: 0 0 15px var(--accent-glow); }
+        .icon-btn svg { width: 20px; height: 20px; }
+
+        /* --- 新增：流体设置面板 (控制台上方) --- */
+        #flow-panel {
+            bottom: 95px; left: 50%; transform: translateX(-50%) translateY(10px);
+            display: flex; gap: 24px; padding: 12px 24px;
+            border-radius: 30px;
+            opacity: 0; pointer-events: none;
+            transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+            z-index: 15;
+        }
+        #flow-panel.visible {
+            opacity: 1; pointer-events: auto;
+            transform: translateX(-50%) translateY(0);
+        }
+        #flow-panel .slider-group { width: 80px; } /* 更紧凑 */
+
+        /* --- 4. 导入模块 (底部左侧) --- */
+        #import-panel {
+            bottom: 30px; left: 30px;
+            width: 180px; padding: 0;
+            overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+        .drop-zone {
+            padding: 20px; text-align: center; cursor: pointer;
+            transition: all 0.3s;
+        }
+        .drop-zone:hover { background: rgba(255,255,255,0.02); }
+        .drop-zone:hover .drop-icon { color: var(--accent-primary); transform: scale(1.1); }
+        .drop-icon { display: block; font-size: 1.2rem; color: var(--text-muted); margin-bottom: 8px; transition: transform 0.3s; }
+        .drop-text { font-family: var(--font-serif); font-size: 1rem; color: var(--text-main); }
+        .drop-sub { font-size: 0.65rem; color: var(--text-muted); margin-top: 4px; }
+
+        /* Model List Panel */
+        #model-list-panel {
+            position: absolute;
+            top: 100px;
+            left: 30px;
+            width: 220px;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+            scrollbar-width: thin;
+            scrollbar-color: var(--accent-primary) transparent;
+            z-index: 5;
+        }
+        #model-list-panel::-webkit-scrollbar { width: 4px; }
+        #model-list-panel::-webkit-scrollbar-thumb { background: var(--accent-primary); border-radius: 2px; }
+        
+        #model-list-panel.visible { display: block; }
+        
+        .model-item {
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .model-item:hover {
+            background: rgba(255,255,255,0.06);
+            border-color: rgba(212, 175, 55, 0.3);
+        }
+        .model-item.active {
+            border-color: var(--accent-primary);
+            background: rgba(212, 175, 55, 0.1);
+        }
+        .model-item-name {
+            font-size: 0.75rem;
+            color: var(--text-main);
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        .model-item-info {
+            display: flex;
+            justify-content: space-between;
+            color: var(--text-muted);
+            font-size: 0.65rem;
+        }
+        .model-item-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 6px;
+        }
+        .model-btn {
+            flex: 1;
+            padding: 4px 8px;
+            font-size: 0.6rem;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-muted);
+            border-radius: 2px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .model-btn:hover {
+            background: var(--accent-primary);
+            color: #000;
+            border-color: var(--accent-primary);
+        }
+        .model-btn.delete:hover {
+            background: #ff4444;
+            border-color: #ff4444;
+        }
+
+        
+
+        /* --- 5. 导航指南 (底部右侧) --- */
+        #nav-hint {
+            bottom: 30px; right: 30px;
+            text-align: right;
+            border: none; background: transparent; backdrop-filter: none;
+            pointer-events: none;
+            min-width: 140px;
+        }
+        .key-row { margin-bottom: 6px; font-size: 0.75rem; color: var(--text-muted); }
+        .kbd { 
+            color: var(--accent-primary); font-family: var(--font-serif); font-style: italic; 
+            margin-right: 6px; font-weight: 600;
+        }
+        
+        /* 社交媒体链接样式 */
+        #social-links {
+            margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;
+            display: flex; flex-direction: column; gap: 8px; pointer-events: auto;
+        }
+        .social-link {
+            display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+            text-decoration: none; color: var(--text-muted); font-size: 0.75rem;
+            transition: all 0.2s;
+        }
+        .social-link:hover { color: var(--accent-primary); transform: translateX(-4px); }
+        .social-link svg { width: 14px; height: 14px; opacity: 0.8; }
+
+        /* --- Watermark (Updated with Image) --- */
+        #watermark {
+            position: absolute; bottom: 10px; right: 30px;
+            color: var(--text-muted); font-size: 0.55rem;
+            font-family: var(--font-ui); letter-spacing: 1px;
+            opacity: 0.6; pointer-events: none; z-index: 10;
+            transition: opacity 0.4s;
+            /* Flex layout for image + text */
+            display: flex; align-items: center; gap: 8px;
+        }
+        #watermark img {
+            height: 24px; /* Scale down the 1080px image to UI scale */
+            width: auto;
+            border-radius: 4px; /* Soft rounding instead of full circle to prevent cropping */
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+        }
+
+        /* --- 开关按钮 --- */
+        #toggle-ui-btn {
+            position: absolute; bottom: 30px; right: 30px; 
+            /* 把它放在导航提示上方一点，或者让它不那么显眼 */
+            display: none; /* 这种布局下可以隐藏，通过键盘H控制，或者放在右上角 */
+        }
+
+        /* Loading Overlay with Interaction */
+        #loading-overlay {
+            position: absolute; inset: 0; background: #121212;
+            z-index: 100;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.8s ease;
+            cursor: none; overflow: hidden;
+        }
+        #loading-overlay.active { opacity: 1; pointer-events: auto; }
+        #loading-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; opacity: 1.0; }
+        .loading-content {
+            position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center;
+            pointer-events: none; width: 100%; max-width: 400px;
+            background: rgba(18, 18, 18, 0.4); padding: 20px; border-radius: 20px; backdrop-filter: blur(5px);
+        }
+        .loader {
+            width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1);
+            border-top-color: var(--accent-primary); animation: spin 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite; 
+            margin-bottom: 24px; box-shadow: 0 0 30px rgba(212, 175, 55, 0.1);
+        }
+        #loading-text {
+            font-family: var(--font-serif); font-size: 1.2rem; letter-spacing: 2px; color: var(--text-main); font-style: italic;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5); margin-bottom: 10px;
+        }
+        #tutorial-text {
+            font-family: var(--font-ui); font-size: 0.8rem; letter-spacing: 1px; color: var(--accent-primary); text-transform: uppercase;
+            margin-bottom: 20px; animation: blink 2s infinite;
+        }
+        @keyframes blink { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+        .progress-container { width: 200px; height: 2px; background: rgba(255,255,255,0.1); position: relative; margin-bottom: 16px; overflow: hidden; }
+        .progress-bar { position: absolute; top: 0; left: 0; bottom: 0; width: 0%; background: var(--accent-primary); box-shadow: 0 0 10px var(--accent-glow); transition: width 0.2s linear; }
+        #loading-quote { font-family: var(--font-serif); font-style: italic; color: var(--text-muted); font-size: 0.95rem; opacity: 0.8; max-width: 400px; text-align: center; min-height: 1.5em; transition: opacity 0.5s; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <!-- Loading Screen -->
+    <div id="loading-overlay" class="active">
+        <canvas id="loading-canvas"></canvas>
+        <div class="loading-content">
+            <div class="loader"></div>
+            <div id="loading-text" data-key="loading_init">INITIALIZING SYSTEM</div>
+            <div id="tutorial-text" data-key="tutorial_text">[ WASD ] TO FLY & COLLECT</div>
+            <div class="progress-container"><div class="progress-bar" id="loading-bar"></div></div>
+            <div id="loading-quote">"Light is the first of painters."</div>
+        </div>
+    </div>
+
+    <!-- 1. Top Header -->
+    <div id="top-header" class="hud-panel">
+        <h1>3DGS.ART</h1>
+        <div class="header-row">
+            <span class="subtitle" data-key="subtitle">HIGH FIDELITY VIEWER .01</span>
+            <button class="lang-btn" onclick="toggleLanguage()">中 / EN</button>
+        </div>
+    </div>
+
+    <!-- 2. Top Stats -->
+    <div id="top-stats" class="hud-panel">
+        <div class="stat-item">
+            <span class="stat-value" id="stat-points">--</span>
+            <span class="stat-label" data-key="stat_points">Points</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-value" id="stat-fps">--</span>
+            <span class="stat-label" data-key="stat_fps">FPS</span>
+        </div>
+    </div>
+
+    <!-- Extra: Flow Settings Panel (Hidden by default) -->
+    <div id="flow-panel" class="hud-panel">
+        <div class="slider-group">
+            <label data-key="flow_amp">Amp</label>
+            <input type="range" min="1.0" max="20.0" step="0.5" value="8.0" id="input-flow-amp" title="Dispersion Amount">
+        </div>
+        <div class="deck-divider"></div>
+        <div class="slider-group">
+            <label data-key="flow_freq">Freq</label>
+            <input type="range" min="0.1" max="1.0" step="0.1" value="0.3" id="input-flow-freq" title="Noise Frequency">
+        </div>
+        <div class="deck-divider"></div>
+        <div class="slider-group">
+            <label data-key="flow_speed">Speed</label>
+            <input type="range" min="0.1" max="2.0" step="0.1" value="0.6" id="input-flow-speed" title="Flow Speed">
+        </div>
+    </div>
+
+    <!-- 3. Control Deck (Center Bottom) -->
+    <div id="control-deck" class="hud-panel">
+        <!-- Scale (Default 2.5) -->
+        <div class="slider-group">
+            <label data-key="ctrl_scale">Scale</label>
+            <input type="range" min="0.1" max="3.0" step="0.1" value="2.5" id="input-scale" title="Splat Scale">
+        </div>
+        
+        <div class="deck-divider"></div>
+        
+        <!-- Opacity -->
+        <div class="slider-group">
+            <label data-key="ctrl_opacity">Opacity</label>
+            <input type="range" min="0.1" max="2.0" step="0.1" value="1.0" id="input-opacity" title="Global Opacity">
+        </div>
+
+        <div class="deck-divider"></div>
+
+        <!-- Exposure -->
+        <div class="slider-group">
+            <label data-key="ctrl_exposure">Exposure</label>
+            <input type="range" min="0.5" max="3.0" step="0.1" value="1.0" id="input-brightness" title="Exposure">
+        </div>
+
+        <div class="deck-divider"></div>
+
+        <!-- Speed (New) -->
+        <div class="slider-group">
+            <label data-key="ctrl_speed">Speed</label>
+            <input type="range" min="1" max="100" step="1" value="10" id="input-speed" title="Camera Speed">
+        </div>
+
+        <div class="deck-divider"></div>
+
+        <!-- Turbulence Toggle (New) -->
+        <button class="icon-btn" onclick="toggleTurbulence()" id="btn-flow" title="Dispersion Flow">
+            <!-- Wave Icon -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 12c.6 0 1.2.4 1.6.9.6.7 1.4 1.1 2.4 1.1 1.9 0 2.4-1.9 4.4-1.9 1 0 1.8.4 2.4 1.1.4.5 1 .9 1.6.9"/>
+                <path d="M2 8c.6 0 1.2.4 1.6.9.6.7 1.4 1.1 2.4 1.1 1.9 0 2.4-1.9 4.4-1.9 1 0 1.8.4 2.4 1.1.4.5 1 .9 1.6.9"/>
+                <path d="M2 16c.6 0 1.2.4 1.6.9.6.7 1.4 1.1 2.4 1.1 1.9 0 2.4-1.9 4.4-1.9 1 0 1.8.4 2.4 1.1.4.5 1 .9 1.6.9"/>
+                <path d="M16 12c.5-.5 1.1-.9 1.6-.9.6 0 1.2.4 1.6.9.6.7 1.4 1.1 2.4 1.1.2 0 .4 0 .6-.1"/>
+            </svg>
+        </button>
+
+        <div class="deck-divider"></div>
+
+        <!-- Download Btn (New) -->
+        <button class="icon-btn" onclick="downloadModel()" id="btn-download" title="Download Model">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+        </button>
+
+        <div class="deck-divider"></div>
+
+        <!-- Reset Btn -->
+        <button class="icon-btn" onclick="autoFocusCamera()" title="Reset View">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        </button>
+    </div>
+
+    <!-- 4. Import Panel (Bottom Left) -->
+    <div id="import-panel" class="hud-panel">
+        <div class="drop-zone" id="drop-area">
+            <span class="drop-icon">✦</span>
+            <div class="drop-text" data-key="import_main">Import</div>
+            <div class="drop-sub" data-key="import_sub">Drag & Drop Image/.PLY</div>
+            <input type="file" id="file-input" accept="image/*,.ply" style="display:none">
+        </div>
+    </div>
+
+    <!-- Model List Panel -->
+    <div id="model-list-panel" class="hud-panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <span style="font-size: 0.7rem; color: var(--accent-primary); letter-spacing: 1px; text-transform: uppercase;">MODELS</span>
+            <span id="model-count" style="font-size: 0.65rem; color: var(--text-muted);">0</span>
+        </div>
+        <div id="model-list-container"></div>
+    </div>
+
+    <!-- 5. Nav Hint (Bottom Right) -->
+    <div id="nav-hint" class="hud-panel">
+        <div class="key-row"><span class="kbd">WASD</span> <span data-key="nav_move">Move</span></div>
+        <div class="key-row"><span class="kbd">Q / E</span> <span data-key="nav_lift">Lift</span></div>
+        <div class="key-row"><span class="kbd">Shift</span> <span data-key="nav_fast">Fast</span></div>
+        <div class="key-row"><span class="kbd">Mouse</span> <span data-key="nav_look">Look</span></div>
+        
+        <!-- Social Media Links (Dynamic) -->
+        <div id="social-links">
+            <!-- Populated by JS -->
+        </div>
+    </div>
+
+    <!-- Watermark -->
+    <div id="watermark">
+        <img src="Watermark.png" alt="Logo" onerror="this.style.display='none'">
+        <span>多多GemosDodo制作</span>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // --- I18N System ---
+        const dictionary = {
+            en: {
+                subtitle: "HIGH FIDELITY VIEWER .01",
+                stat_points: "Points",
+                stat_fps: "FPS",
+                ctrl_scale: "Scale",
+                ctrl_opacity: "Opacity",
+                ctrl_exposure: "Exposure",
+                ctrl_speed: "Speed",
+                flow_amp: "Amp",
+                flow_freq: "Freq",
+                flow_speed: "Flow Spd",
+                import_main: "Import",
+                import_sub: "Drag & Drop Image/.PLY",
+                nav_move: "Move",
+                nav_lift: "Lift",
+                nav_fast: "Fast",
+                nav_look: "Look",
+                loading_init: "INITIALIZING SYSTEM",
+                tutorial_text: "[ WASD ] TO FLY & COLLECT",
+                loading_processing: "PROCESSING ARTWORK",
+                loading_downloading: "DOWNLOADING GEOMETRY",
+                loading_parsing: "PARSING DATA...",
+                loading_generating: "GENERATING ARTWORK",
+                loading_importing: "IMPORTING MODEL",
+                loading_download_general: "DOWNLOADING...",
+                btn_flow_tooltip: "Disperse / Reset Flow",
+                btn_download_tooltip: "Download Model (.ply)"
+            },
+            zh: {
+                subtitle: "高保真可视化 .01",
+                stat_points: "点云数",
+                stat_fps: "帧率",
+                ctrl_scale: "缩放",
+                ctrl_opacity: "透明度",
+                ctrl_exposure: "曝光",
+                ctrl_speed: "速度",
+                flow_amp: "强度",
+                flow_freq: "频率",
+                flow_speed: "流速",
+                import_main: "导入模型",
+                import_sub: "拖拽 .PLY 文件",
+                nav_move: "移动",
+                nav_lift: "升降",
+                nav_fast: "加速",
+                nav_look: "视角",
+                loading_init: "系统初始化中",
+                tutorial_text: "[ WASD ] 飞行与探索",
+                loading_processing: "正在处理作品",
+                loading_downloading: "正在下载几何数据",
+                loading_parsing: "数据解析中...",
+                loading_generating: "生成演示模型",
+                loading_importing: "正在导入模型",
+                loading_download_general: "下载中...",
+                btn_flow_tooltip: "散开 / 复原 (湍流效果)",
+                btn_download_tooltip: "下载模型 (.ply)"
+            }
+        };
+
+        const socialData = {
+            zh: [
+                { name: "小红书", url: "https://www.xiaohongshu.com/user/profile/5e59ee3200000000010091d9", icon: '<path d="M4 4h16v16H4z"/>' }, // 简化的方形作为书本替代
+                { name: "Bilibili", url: "https://space.bilibili.com/488258780?spm_id_from=333.33.0.0", icon: '<path d="M4 8h16v12H4z M7 8l-2-3 M17 8l2-3"/>' },
+                { name: "QQ群", url: "https://qm.qq.com/q/VgSlMQwwA6", icon: '<path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2z"/>' }
+            ],
+            en: [
+                { name: "X", url: "https://x.com/duoqian1421848", icon: '<path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>' },
+                { name: "YouTube", url: "https://www.youtube.com/@Gemos_Dodo", icon: '<path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33zM9.75 15.02l5.75-3.27-5.75-3.27z"/>' },
+                { name: "Discord", url: "https://discord.gg/jXyCNc7q", icon: '<path d="M19.27 5.33C17.94 4.71 16.5 4.26 15 4a.09.09 0 0 0-.07.03c-.18.33-.39.76-.53 1.09a16.09 16.09 0 0 0-4.8 0c-.14-.34-.35-.76-.54-1.09c-.01-.02-.04-.03-.07-.03c-1.5.26-2.93.71-4.27 1.33c-.01 0-.02.01-.03.02c-2.72 4.07-3.47 8.03-3.1 11.95c0 .02.01.04.03.05c1.8 1.32 3.53 2.12 5.24 2.65c.03.01.06 0 .07-.02c.4-.55.76-1.13 1.07-1.74c.02-.04 0-.08-.04-.09c-.57-.22-1.11-.48-1.64-.78c-.04-.02-.04-.08.01-.11c.11-.08.22-.17.33-.25c.02-.02.05-.02.07-.01c3.44 1.57 7.15 1.57 10.55 0c.02-.01.05-.01.07.01c.11.09.22.17.33.26c.04.03.04.09-.01.11c-.52.31-1.07.56-1.64.78c-.04.01-.05.06-.04.09c.32.61.68 1.19 1.07 1.74c.03.01.06.02.09.01c1.72-.53 3.45-1.33 5.25-2.65c.02-.01.03-.03.03-.05c.44-4.53-.73-8.46-3.1-11.95c-.01-.01-.02-.02-.04-.02zM8.52 14.91c-1.03 0-1.89-.95-1.89-2.12s.84-2.12 1.89-2.12c1.06 0 1.9.96 1.89 2.12c0 1.17-.85 2.12-1.89 2.12z"/>' }
+            ]
+        };
+
+        let currentLang = 'zh'; // Default to Chinese
+
+        window.toggleLanguage = () => {
+            currentLang = currentLang === 'en' ? 'zh' : 'en';
+            applyLanguage();
+        };
+
+        function applyLanguage() {
+            const data = dictionary[currentLang];
+            // Update all elements with data-key attribute
+            document.querySelectorAll('[data-key]').forEach(el => {
+                const key = el.getAttribute('data-key');
+                if (data[key]) el.innerText = data[key];
+            });
+            
+            // Tooltips
+            document.getElementById('btn-flow').title = data['btn_flow_tooltip'];
+            document.getElementById('btn-download').title = data['btn_download_tooltip'];
+
+            // Update Social Links
+            const socialContainer = document.getElementById('social-links');
+            socialContainer.innerHTML = ''; // Clear existing
+            
+            const links = socialData[currentLang];
+            links.forEach(link => {
+                const a = document.createElement('a');
+                a.href = link.url;
+                a.className = 'social-link';
+                a.target = '_blank';
+                a.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor">${link.icon}</svg> ${link.name}`;
+                socialContainer.appendChild(a);
+            });
+        }
+        
+        function getTrans(key) {
+            return dictionary[currentLang][key] || key;
+        }
+
+        // --- Loading Screen Game System (Tutorial) ---
+        class LoadingGameSystem {
+            constructor() {
+                this.overlay = document.getElementById('loading-overlay');
+                this.canvas = document.getElementById('loading-canvas');
+                this.bar = document.getElementById('loading-bar');
+                this.ctx = this.canvas.getContext('2d');
+                this.isActive = true;
+                this.quoteEl = document.getElementById('loading-quote');
+                
+                this.player = { x: window.innerWidth/2, y: window.innerHeight/2, vx: 0, vy: 0, size: 8 };
+                this.targets = []; 
+                this.particles = []; 
+                
+                this.quotes = [
+                    "Light is the first of painters. - Emerson",
+                    "Simulating photons...",
+                    "Art is not what you see, but what you make others see. - Degas",
+                    "Constructing Gaussian Splats...",
+                    "In order to see, we must forget the name of the thing we are looking at. - Monet"
+                ];
+
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+                
+                this.quoteInterval = setInterval(() => this.rotateQuote(), 3000);
+                this.rotateQuote(); 
+
+                for(let i=0; i<5; i++) this.spawnTarget();
+
+                this.animate();
+            }
+
+            resize() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+            }
+
+            spawnTarget() {
+                const padding = 50;
+                this.targets.push({
+                    x: padding + Math.random() * (this.canvas.width - padding*2),
+                    y: padding + Math.random() * (this.canvas.height - padding*2),
+                    radius: 0, maxRadius: 6 + Math.random() * 4
+                });
+            }
+
+            spawnParticle(x, y, color) {
+                for(let i=0; i<5; i++) {
+                    this.particles.push({
+                        x: x, y: y,
+                        vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4,
+                        life: 1.0, color: color || '#d4af37'
+                    });
+                }
+            }
+
+            rotateQuote() {
+                if(!this.isActive) return;
+                this.quoteEl.style.opacity = 0;
+                setTimeout(() => {
+                    const idx = Math.floor(Math.random() * this.quotes.length);
+                    this.quoteEl.innerText = this.quotes[idx];
+                    this.quoteEl.style.opacity = 0.8;
+                }, 500);
+            }
+
+            updatePlayer() {
+                const ax = (physics.move.r - physics.move.l) * 0.8;
+                const ay = (physics.move.b - physics.move.f) * 0.8;
+
+                this.player.vx += ax;
+                this.player.vy += ay;
+                
+                this.player.vx *= 0.92;
+                this.player.vy *= 0.92;
+
+                this.player.x += this.player.vx;
+                this.player.y += this.player.vy;
+
+                if(this.player.x < 0) { this.player.x = 0; this.player.vx *= -0.5; }
+                if(this.player.x > this.canvas.width) { this.player.x = this.canvas.width; this.player.vx *= -0.5; }
+                if(this.player.y < 0) { this.player.y = 0; this.player.vy *= -0.5; }
+                if(this.player.y > this.canvas.height) { this.player.y = this.canvas.height; this.player.vy *= -0.5; }
+            }
+
+            animate() {
+                if (!this.isActive) return;
+                requestAnimationFrame(() => this.animate());
+
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                this.updatePlayer();
+                
+                this.ctx.save();
+                this.ctx.translate(this.player.x, this.player.y);
+                const angle = Math.atan2(this.player.vy, this.player.vx);
+                this.ctx.rotate(angle + Math.PI/2);
+                
+                this.ctx.beginPath();
+                this.ctx.moveTo(0, -this.player.size * 1.5);
+                this.ctx.lineTo(-this.player.size, this.player.size);
+                this.ctx.lineTo(this.player.size, this.player.size);
+                this.ctx.closePath();
+                this.ctx.fillStyle = '#d4af37';
+                this.ctx.fill();
+                
+                if(Math.random() > 0.5 && (Math.abs(this.player.vx) > 0.1 || Math.abs(this.player.vy) > 0.1)) {
+                     this.particles.push({
+                        x: this.player.x, y: this.player.y,
+                        vx: (Math.random()-0.5), vy: (Math.random()-0.5),
+                        life: 0.5, color: 'rgba(255,255,255,0.5)'
+                    });
+                }
+                this.ctx.restore();
+
+                for (let i = this.targets.length - 1; i >= 0; i--) {
+                    const t = this.targets[i];
+                    if(t.radius < t.maxRadius) t.radius += 0.2;
+                    
+                    const grad = this.ctx.createRadialGradient(t.x, t.y, 0, t.x, t.y, t.radius * 2);
+                    grad.addColorStop(0, 'rgba(212, 175, 55, 0.8)');
+                    grad.addColorStop(1, 'rgba(212, 175, 55, 0)');
+                    this.ctx.fillStyle = grad;
+                    this.ctx.beginPath();
+                    this.ctx.arc(t.x, t.y, t.radius * 2, 0, Math.PI*2);
+                    this.ctx.fill();
+                    
+                    this.ctx.fillStyle = '#fff';
+                    this.ctx.beginPath();
+                    this.ctx.arc(t.x, t.y, 2, 0, Math.PI*2);
+                    this.ctx.fill();
+
+                    const dx = this.player.x - t.x;
+                    const dy = this.player.y - t.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    
+                    if(dist < t.radius + 10) {
+                        this.spawnParticle(t.x, t.y, '#d4af37');
+                        this.targets.splice(i, 1);
+                        this.spawnTarget();
+                    }
+                }
+
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    const p = this.particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.life -= 0.02;
+                    
+                    if (p.life <= 0) {
+                        this.particles.splice(i, 1);
+                    } else {
+                        this.ctx.fillStyle = p.color;
+                        this.ctx.globalAlpha = p.life;
+                        this.ctx.beginPath();
+                        this.ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+                        this.ctx.fill();
+                        this.ctx.globalAlpha = 1.0;
+                    }
+                }
+            }
+
+            setProgress(percent) {
+                if(this.bar) this.bar.style.width = (percent * 100) + '%';
+            }
+
+            stop() {
+                this.isActive = false;
+                this.setProgress(1.0);
+                setTimeout(() => {
+                    this.overlay.classList.remove('active');
+                }, 500); 
+                clearInterval(this.quoteInterval);
+            }
+
+            start(messageKey) {
+                this.isActive = true;
+                this.setProgress(0);
+                this.overlay.classList.add('active');
+                if(messageKey) document.getElementById('loading-text').innerText = getTrans(messageKey);
+                this.animate();
+            }
+        }
+
+        // --- Global Variables & Params ---
+        let scene, camera, renderer, splatMesh;
+        let rawPlyData = null; // Store raw buffer for download
+        const clock = new THREE.Clock();
+        const SH_C0 = 0.28209479177387814;
+        let geometryData = null;
+        let isUiVisible = true;
+
+        // Multi-model support
+        let models = [];
+        let currentModelId = null;
+        let modelIdCounter = 0;
+
+        const _vMoveDir = new THREE.Vector3();
+        const _vForward = new THREE.Vector3();
+        const _vRight = new THREE.Vector3();
+        const _vUp = new THREE.Vector3(0,1,0);
+        
+        const physics = {
+            velocity: new THREE.Vector3(),
+            inputVector: new THREE.Vector3(),
+            move: { f:0, b:0, l:0, r:0, u:0, d:0 },
+            boost: false,
+            mouseDown: false,
+            mouseLast: { x:0, y:0 },
+            targetRot: new THREE.Euler(0, 0, 0, 'YXZ'),
+            currRot: new THREE.Euler(0, 0, 0, 'YXZ')
+        };
+        
+        const loadingSys = new LoadingGameSystem();
+
+        const state = {
+            mode: 'Fly', 
+            splatScale: 2.5, // Default Value
+            opacity: 1.0,
+            brightness: 1.0,
+            flySpeed: 10.0,
+            acceleration: 100.0, 
+            friction: 10.0,
+            minOpacity: 0.05,
+            turbulence: 0.0, // Target turbulence state (0 or 1)
+            // Flow Params (tuned for "Fish Schools")
+            flowAmp: 8.0,
+            flowFreq: 0.3, // Slightly higher base freq for groups
+            flowSpeed: 0.6
+        };
+        
+        let currentTurbulence = 0.0; // Current uniform value for smooth transition
+
+        init();
+        animate();
+
+        function init() {
+            // Initialize Language
+            applyLanguage();
+
+            const container = document.getElementById('canvas-container');
+            
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x121212); 
+            scene.fog = new THREE.FogExp2(0x121212, 0.02);
+            
+            const grid = new THREE.GridHelper(100, 100, 0x333333, 0x1a1a1a);
+            grid.position.y = -5;
+            grid.material.opacity = 0.3;
+            grid.material.transparent = true;
+            scene.add(grid);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 5000);
+            camera.position.set(0, 5, 10);
+            
+            physics.targetRot.setFromQuaternion(camera.quaternion, 'YXZ');
+            physics.currRot.copy(physics.targetRot);
+            
+            renderer = new THREE.WebGLRenderer({ 
+                antialias: false, 
+                powerPreference: "high-performance",
+                stencil: false,
+                depth: true
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0)); 
+            
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.0;
+            container.appendChild(renderer.domElement);
+
+            bindUI();
+            setupDragAndDrop();
+            setupKeyboard();
+            
+            window.addEventListener('resize', onWindowResize);
+            window.addEventListener('contextmenu', e => e.preventDefault());
+            
+            // Initial Logic
+            const params = new URLSearchParams(window.location.search);
+            const modelUrl = params.get('url');
+            
+            if (modelUrl) {
+                loadingSys.start("loading_importing");
+                loadFileFromUrl(modelUrl);
+            } else {
+                generateExampleSplat();
+            }
+        }
+
+        // --- Procedural Generation for Example Model ---
+        function generateExampleSplat() {
+            loadingSys.start("loading_generating");
+            
+            // Clear rawPlyData since we are generating new data
+            rawPlyData = null;
+
+            const count = 50000;
+            const posBuffer = new Float32Array(count * 3);
+            const rotBuffer = new Float32Array(count * 4);
+            const scaleBuffer = new Float32Array(count * 3);
+            const colBuffer = new Float32Array(count * 4);
+            
+            const color1 = new THREE.Color(0xd4af37); // Gold
+            const color2 = new THREE.Color(0x2a2a2a); // Dark Grey
+            const color3 = new THREE.Color(0xffffff); // White
+
+            for(let i=0; i<count; i++) {
+                const t = i / count;
+                const angle = t * Math.PI * 20; // Spiral
+                const radius = t * 15;
+                
+                const x = Math.cos(angle) * radius + (Math.random()-0.5) * (t * 2);
+                const y = (Math.random() - 0.5) * (t * 3); 
+                const z = Math.sin(angle) * radius + (Math.random()-0.5) * (t * 2);
+
+                posBuffer[i*3] = x;
+                posBuffer[i*3+1] = y;
+                posBuffer[i*3+2] = z;
+
+                const q = new THREE.Quaternion();
+                q.setFromEuler(new THREE.Euler(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI));
+                rotBuffer[i*4] = q.x;
+                rotBuffer[i*4+1] = q.y;
+                rotBuffer[i*4+2] = q.z;
+                rotBuffer[i*4+3] = q.w;
+
+                const s = Math.random() * 0.15 + 0.05;
+                scaleBuffer[i*3] = s;
+                scaleBuffer[i*3+1] = s;
+                scaleBuffer[i*3+2] = s;
+
+                const c = new THREE.Color();
+                if(Math.random() > 0.95) c.copy(color3);
+                else c.lerpColors(color2, color1, Math.pow(t, 0.5));
+                
+                colBuffer[i*4] = c.r;
+                colBuffer[i*4+1] = c.g;
+                colBuffer[i*4+2] = c.b;
+                colBuffer[i*4+3] = 0.8; 
+            }
+
+            // For the example model, the center is (0,0,0)
+            const center = new THREE.Vector3(0, 0, 0);
+            
+            geometryData = { count, pos: posBuffer, rot: rotBuffer, scale: scaleBuffer, col: colBuffer, center: center };
+
+            let p = 0;
+            const sim = setInterval(() => {
+                p += 0.05;
+                loadingSys.setProgress(p);
+                if(p >= 1) {
+                    clearInterval(sim);
+                    createSplatMesh(geometryData);
+                    
+                    // --- Manual Camera Setup for Demo ---
+                    // The spiral is on the XZ plane. We need an elevated view.
+                    camera.position.set(0, 10, 20); 
+                    camera.lookAt(0, 0, 0);
+                    
+                    // Sync physics rotation to camera's new orientation
+                    physics.targetRot.setFromQuaternion(camera.quaternion, 'YXZ');
+                    physics.currRot.copy(physics.targetRot);
+                    physics.velocity.set(0,0,0);
+                    // ------------------------------------
+
+                    loadingSys.stop();
+                    document.getElementById('stat-points').innerText = (count/1000).toFixed(1) + "k (Demo)";
+                }
+            }, 30);
+        }
+
+        function bindUI() {
+            // UI visibility toggle with H
+            window.addEventListener('keydown', (e) => {
+                if (e.key.toLowerCase() === 'h') {
+                    isUiVisible = !isUiVisible;
+                    if(isUiVisible) {
+                        document.body.classList.remove('ui-hidden');
+                    } else {
+                        document.body.classList.add('ui-hidden');
+                    }
+                }
+            });
+
+            window.autoFocusCamera = autoFocusCamera;
+            
+            // Turbulence Toggle
+            window.toggleTurbulence = () => {
+                const btn = document.getElementById('btn-flow');
+                const panel = document.getElementById('flow-panel');
+                
+                if (state.turbulence > 0.5) {
+                    state.turbulence = 0.0;
+                    btn.classList.remove('active');
+                    panel.classList.remove('visible');
+                } else {
+                    state.turbulence = 1.0;
+                    btn.classList.add('active');
+                    panel.classList.add('visible');
+                }
+            };
+
+            window.downloadModel = () => {
+                if (rawPlyData) {
+                    // Download raw buffer (Original PLY)
+                    const blob = new Blob([rawPlyData], { type: 'application/octet-stream' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'model.ply';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                } else if (geometryData) {
+                    // Generate minimal ASCII PLY from current geometry (for demo)
+                    // Note: This creates a simple Point Cloud PLY, not a full 3DGS PLY
+                    let header = "ply\nformat ascii 1.0\n";
+                    header += `element vertex ${geometryData.count}\n`;
+                    header += "property float x\nproperty float y\nproperty float z\n";
+                    header += "property uchar red\nproperty uchar green\nproperty uchar blue\n";
+                    header += "end_header\n";
+                    
+                    let body = "";
+                    for(let i=0; i<geometryData.count; i++) {
+                        const x = geometryData.pos[i*3].toFixed(4);
+                        const y = geometryData.pos[i*3+1].toFixed(4);
+                        const z = geometryData.pos[i*3+2].toFixed(4);
+                        const r = Math.floor(geometryData.col[i*4] * 255);
+                        const g = Math.floor(geometryData.col[i*4+1] * 255);
+                        const b = Math.floor(geometryData.col[i*4+2] * 255);
+                        body += `${x} ${y} ${z} ${r} ${g} ${b}\n`;
+                    }
+                    
+                    const blob = new Blob([header + body], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'demo_spiral.ply';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                } else {
+                    alert("No model data available to download.");
+                }
+            };
+
+            const bindSlider = (id, targetKey) => {
+                const el = document.getElementById(id);
+                el.addEventListener('input', (e) => {
+                    const val = parseFloat(e.target.value);
+                    state[targetKey] = val;
+                    updateUniforms();
+                });
+            };
+
+            bindSlider('input-scale', 'splatScale');
+            bindSlider('input-opacity', 'opacity');
+            bindSlider('input-brightness', 'brightness');
+            bindSlider('input-speed', 'flySpeed');
+            bindSlider('input-flow-amp', 'flowAmp');
+            bindSlider('input-flow-freq', 'flowFreq');
+            bindSlider('input-flow-speed', 'flowSpeed');
+        }
+
+        function updateUniforms() {
+            if(splatMesh) {
+                const u = splatMesh.material.uniforms;
+                u.uSplatScale.value = state.splatScale;
+                u.uOpacityMod.value = state.opacity;
+                u.uBrightness.value = state.brightness;
+                u.uFlowAmp.value = state.flowAmp;
+                u.uFlowFreq.value = state.flowFreq;
+                u.uFlowSpeed.value = state.flowSpeed;
+            }
+        }
+
+        function setupKeyboard() {
+            const k = physics.move;
+            window.addEventListener('keydown', e => {
+                switch(e.code) {
+                    case 'KeyW': k.f = 1; break; 
+                    case 'KeyS': k.b = 1; break; 
+                    case 'KeyA': k.l = 1; break; 
+                    case 'KeyD': k.r = 1; break; 
+                    case 'KeyQ': k.d = 1; break;
+                    case 'KeyE': k.u = 1; break;
+                    case 'ShiftLeft': physics.boost = true; break;
+                }
+            });
+            window.addEventListener('keyup', e => {
+                switch(e.code) {
+                    case 'KeyW': k.f = 0; break;
+                    case 'KeyS': k.b = 0; break;
+                    case 'KeyA': k.l = 0; break;
+                    case 'KeyD': k.r = 0; break;
+                    case 'KeyQ': k.d = 0; break;
+                    case 'KeyE': k.u = 0; break;
+                    case 'ShiftLeft': physics.boost = false; break;
+                }
+            });
+
+            const canvas = renderer.domElement;
+            canvas.addEventListener('mousedown', e => {
+                if(e.button === 0) { 
+                    physics.mouseDown = true;
+                    physics.mouseLast.x = e.clientX;
+                    physics.mouseLast.y = e.clientY;
+                }
+            });
+            window.addEventListener('mouseup', () => physics.mouseDown = false);
+            window.addEventListener('mousemove', e => {
+                if(state.mode === 'Fly' && physics.mouseDown) {
+                    const dx = e.clientX - physics.mouseLast.x;
+                    const dy = e.clientY - physics.mouseLast.y;
+                    physics.mouseLast.x = e.clientX;
+                    physics.mouseLast.y = e.clientY;
+                    
+                    const sensitivity = 0.002;
+                    physics.targetRot.y -= dx * sensitivity;
+                    physics.targetRot.x -= dy * sensitivity;
+                    physics.targetRot.x = Math.max(-1.5, Math.min(1.5, physics.targetRot.x));
+                }
+            });
+        }
+
+        function updatePhysics(dt) {
+            const rotLerp = 10.0 * dt;
+            physics.currRot.x += (physics.targetRot.x - physics.currRot.x) * Math.min(1, rotLerp);
+            physics.currRot.y += (physics.targetRot.y - physics.currRot.y) * Math.min(1, rotLerp);
+            camera.quaternion.setFromEuler(physics.currRot);
+
+            const input = physics.inputVector;
+            input.set(0,0,0);
+            input.z = physics.move.b - physics.move.f;
+            input.x = physics.move.r - physics.move.l;
+            input.y = physics.move.u - physics.move.d;
+            if(input.lengthSq() > 0) input.normalize();
+
+            _vMoveDir.set(0,0,0);
+            _vForward.set(0,0,-1).applyQuaternion(camera.quaternion);
+            _vRight.set(1,0,0).applyQuaternion(camera.quaternion);
+            
+            if(input.z !== 0) _vMoveDir.addScaledVector(_vForward, -input.z); 
+            if(input.x !== 0) _vMoveDir.addScaledVector(_vRight, input.x);
+            if(input.y !== 0) _vMoveDir.addScaledVector(_vUp, input.y);
+            if(_vMoveDir.lengthSq() > 0) _vMoveDir.normalize();
+
+            const maxSpeed = state.flySpeed * (physics.boost ? 4.0 : 1.0);
+            
+            if(_vMoveDir.lengthSq() > 0) {
+                physics.velocity.addScaledVector(_vMoveDir, state.acceleration * dt);
+            }
+            
+            const damping = Math.exp(-state.friction * dt);
+            physics.velocity.multiplyScalar(damping);
+            
+            if(physics.velocity.length() > maxSpeed) physics.velocity.setLength(maxSpeed);
+
+            camera.position.addScaledVector(physics.velocity, dt);
+        }
+
+        function setupDragAndDrop() {
+            const dropArea = document.getElementById('drop-area');
+            let inputEl = document.getElementById('file-input');
+            
+            if(!inputEl) {
+                inputEl = document.createElement('input');
+                inputEl.type = 'file'; 
+                inputEl.id = 'file-input';
+                inputEl.accept = 'image/*,.ply'; 
+                inputEl.style.display = 'none';
+                document.body.appendChild(inputEl);
+            }
+
+            dropArea.onclick = () => inputEl.click();
+            
+            inputEl.onchange = e => { if(e.target.files.length) handleFileUpload(e.target.files[0]); };
+            
+            dropArea.ondragover = e => { e.preventDefault(); dropArea.style.backgroundColor = 'rgba(212, 175, 55, 0.1)'; };
+            dropArea.ondragleave = e => { e.preventDefault(); dropArea.style.backgroundColor = ''; };
+            
+            dropArea.ondrop = e => {
+                e.preventDefault(); dropArea.style.backgroundColor = '';
+                if(e.dataTransfer.files.length) handleFileUpload(e.dataTransfer.files[0]);
+            };
+        }
+
+        function handleFileUpload(file) {
+            const fileName = file.name.toLowerCase();
+            const extension = fileName.split('.').pop();
+            
+            if (extension === 'ply') {
+                // 直接加载 PLY 文件
+                loadPLYFile(file);
+            } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(extension)) {
+                // 上传图片生成 3D 模型
+                uploadAndGenerate(file);
+            } else {
+                alert('不支持的文件格式！请上传图片 (.jpg, .png, 等) 或 .PLY 文件');
+            }
+        }
+
+        function loadPLYFile(file) {
+            loadingSys.start("loading_importing");
+            document.getElementById('loading-text').innerText = `Loading: ${file.name}`;
+            
+            const reader = new FileReader();
+            
+            reader.onprogress = (event) => {
+                if (event.lengthComputable) {
+                    const percentComplete = event.loaded / event.total;
+                    loadingSys.setProgress(percentComplete);
+                }
+            };
+            
+            reader.onload = (event) => {
+                const buffer = event.target.result;
+                rawPlyData = buffer;
+                document.getElementById('loading-text').innerText = getTrans("loading_parsing");
+                setTimeout(() => parsePLYAndAddToScene(buffer, file.name.replace('.ply', '')), 100);
+            };
+            
+            reader.onerror = () => {
+                alert("读取文件失败！");
+                loadingSys.stop();
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+
+        function parsePLYAndAddToScene(buffer, fileName) {
+            const dec = new TextDecoder();
+            const headBytes = new Uint8Array(buffer, 0, 4000); 
+            const headStr = dec.decode(headBytes);
+            const endIdx = headStr.indexOf("end_header");
+            if(endIdx < 0) throw new Error("Header not found");
+
+            let bodyStart = endIdx + 10; 
+            if (headBytes[bodyStart] === 13) bodyStart++; 
+            if (headBytes[bodyStart] === 10) bodyStart++; 
+            
+            const headerLines = headStr.substring(0, endIdx).split('\n');
+            let vertexCount = 0;
+            let propMap = {};
+            let currentElement = '';
+            let currentOffset = 0;
+            let vertexStride = 0;
+
+            headerLines.forEach(line => {
+                const parts = line.trim().split(/\s+/);
+                if (parts[0] === 'element') {
+                    if (currentElement === 'vertex') vertexStride = currentOffset;
+                    currentElement = parts[1];
+                    currentOffset = 0; 
+                    if(parts[1] === 'vertex') vertexCount = parseInt(parts[2]);
+                } else if (parts[0] === 'property') {
+                    const type = parts[1];
+                    const size = (type === 'double' ? 8 : (type === 'uchar' || type === 'char' ? 1 : 4));
+                    if (currentElement === 'vertex') propMap[parts[parts.length - 1]] = { offset: currentOffset };
+                    currentOffset += size;
+                }
+            });
+            if (currentElement === 'vertex') vertexStride = currentOffset;
+
+            const view = new DataView(buffer);
+            const posBuffer = new Float32Array(vertexCount * 3);
+            const rotBuffer = new Float32Array(vertexCount * 4);
+            const scaleBuffer = new Float32Array(vertexCount * 3);
+            const colBuffer = new Float32Array(vertexCount * 4);
+            
+            let validCount = 0;
+            let fileOffset = bodyStart;
+
+            const off = {
+                x: propMap['x']?.offset, y: propMap['y']?.offset, z: propMap['z']?.offset,
+                op: propMap['opacity']?.offset,
+                dc0: propMap['f_dc_0']?.offset,
+                rot0: propMap['rot_0']?.offset,
+                s0: propMap['scale_0']?.offset
+            };
+            const hasRot = off.rot0 !== undefined;
+            const hasScale = off.s0 !== undefined;
+            const hasColor = off.dc0 !== undefined;
+
+            for(let i=0; i<vertexCount; i++) {
+                if(fileOffset + vertexStride > buffer.byteLength) break;
+                
+                const x = view.getFloat32(fileOffset + off.x, true);
+                if(isNaN(x)) { fileOffset += vertexStride; continue; }
+
+                let opacity = 1.0;
+                if(off.op !== undefined) {
+                    opacity = 1.0 / (1.0 + Math.exp(-view.getFloat32(fileOffset + off.op, true)));
+                }
+                if(opacity < state.minOpacity) { fileOffset += vertexStride; continue; }
+
+                posBuffer[validCount*3] = x;
+                posBuffer[validCount*3+1] = view.getFloat32(fileOffset + off.y, true);
+                posBuffer[validCount*3+2] = view.getFloat32(fileOffset + off.z, true);
+
+                if(hasRot) {
+                    rotBuffer[validCount*4] = view.getFloat32(fileOffset + off.rot0 + 4, true);
+                    rotBuffer[validCount*4+1] = view.getFloat32(fileOffset + off.rot0 + 8, true);
+                    rotBuffer[validCount*4+2] = view.getFloat32(fileOffset + off.rot0 + 12, true);
+                    rotBuffer[validCount*4+3] = view.getFloat32(fileOffset + off.rot0, true);
+                } else {
+                    rotBuffer[validCount*4+3] = 1;
+                }
+
+                if(hasScale) {
+                    scaleBuffer[validCount*3] = Math.exp(view.getFloat32(fileOffset + off.s0, true));
+                    scaleBuffer[validCount*3+1] = Math.exp(view.getFloat32(fileOffset + off.s0 + 4, true));
+                    scaleBuffer[validCount*3+2] = Math.exp(view.getFloat32(fileOffset + off.s0 + 8, true));
+                } else {
+                    scaleBuffer.fill(0.1, validCount*3, validCount*3+3);
+                }
+
+                if(hasColor) {
+                    colBuffer[validCount*4] = 0.5 + SH_C0 * view.getFloat32(fileOffset + off.dc0, true);
+                    colBuffer[validCount*4+1] = 0.5 + SH_C0 * view.getFloat32(fileOffset + off.dc0 + 4, true);
+                    colBuffer[validCount*4+2] = 0.5 + SH_C0 * view.getFloat32(fileOffset + off.dc0 + 8, true);
+                } else {
+                    colBuffer.fill(0.5, validCount*4, validCount*4+3);
+                }
+                colBuffer[validCount*4+3] = opacity;
+
+                validCount++;
+                fileOffset += vertexStride;
+            }
+
+            const geometryData = {
+                count: validCount,
+                pos: posBuffer.slice(0, validCount*3),
+                rot: rotBuffer.slice(0, validCount*4),
+                scale: scaleBuffer.slice(0, validCount*3),
+                col: colBuffer.slice(0, validCount*4)
+            };
+
+            // 计算中心点
+            let center = new THREE.Vector3();
+            for(let i=0; i<validCount*3; i+=3) {
+                center.x += geometryData.pos[i];
+                center.y += geometryData.pos[i+1];
+                center.z += geometryData.pos[i+2];
+            }
+            center.divideScalar(validCount);
+
+            // 将模型添加到多模型系统
+            addModelToScene(geometryData, fileName, buffer, center);
+            
+            loadingSys.stop();
+            updateModelCount();
+        }
+
+        async function uploadAndGenerate(file) {
+            loadingSys.start("loading_processing");
+            
+            let p = 0;
+            const timer = setInterval(() => {
+                if(p < 0.5) {
+                    p += 0.01;
+                    loadingSys.setProgress(p);
+                }
+            }, 50);
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/v1/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                clearInterval(timer);
+
+                if (!response.ok) throw new Error("API Unavailable in Preview");
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    const plyUrl = data.url;
+                    document.getElementById('loading-text').innerText = getTrans("loading_downloading");
+                    loadFileFromUrl(plyUrl);
+                } else {
+                    throw new Error(data.message);
+                }
+
+            } catch (err) {
+                clearInterval(timer);
+                console.error(err);
+                alert("Error: " + err.message + "\n\nPreview Mode: Backend not connected.\nUse '?url=...' to load external models.");
+                loadingSys.stop();
+            }
+        }
+
+        function loadFileFromUrl(url) {
+            document.getElementById('loading-text').innerText = getTrans("loading_download_general");
+            loadingSys.setProgress(0);
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', url, true);
+            xhr.responseType = 'arraybuffer';
+
+            xhr.onprogress = (event) => {
+                if (event.lengthComputable) {
+                    const percentComplete = event.loaded / event.total;
+                    loadingSys.setProgress(percentComplete);
+                } else {
+                    const val = parseFloat(document.getElementById('loading-bar').style.width) / 100 || 0;
+                    if(val < 0.9) loadingSys.setProgress(val + 0.01);
+                }
+            };
+
+            xhr.onload = () => {
+                if (xhr.status === 200) {
+                    rawPlyData = xhr.response; // Store raw data for download
+                    document.getElementById('loading-text').innerText = getTrans("loading_parsing");
+                    setTimeout(() => parsePLY(xhr.response), 100);
+                } else {
+                    alert("Download Failed: HTTP " + xhr.status);
+                    loadingSys.stop();
+                }
+            };
+
+            xhr.onerror = () => {
+                alert("Download Failed: Network Error");
+                loadingSys.stop();
+            };
+
+            xhr.send();
+        }
+
+        function parsePLY(buffer) {
+            const dec = new TextDecoder();
+            const headBytes = new Uint8Array(buffer, 0, 4000); 
+            const headStr = dec.decode(headBytes);
+            const endIdx = headStr.indexOf("end_header");
+            if(endIdx < 0) throw new Error("Header not found");
+
+            let bodyStart = endIdx + 10; 
+            if (headBytes[bodyStart] === 13) bodyStart++; 
+            if (headBytes[bodyStart] === 10) bodyStart++; 
+            
+            const headerLines = headStr.substring(0, endIdx).split('\n');
+            let vertexCount = 0;
+            let propMap = {};
+            let currentElement = '';
+            let currentOffset = 0;
+            let vertexStride = 0;
+
+            headerLines.forEach(line => {
+                const parts = line.trim().split(/\s+/);
+                if (parts[0] === 'element') {
+                    if (currentElement === 'vertex') vertexStride = currentOffset;
+                    currentElement = parts[1];
+                    currentOffset = 0; 
+                    if(parts[1] === 'vertex') vertexCount = parseInt(parts[2]);
+                } else if (parts[0] === 'property') {
+                    const type = parts[1];
+                    const size = (type === 'double' ? 8 : (type === 'uchar' || type === 'char' ? 1 : 4));
+                    if (currentElement === 'vertex') propMap[parts[parts.length - 1]] = { offset: currentOffset };
+                    currentOffset += size;
+                }
+            });
+            if (currentElement === 'vertex') vertexStride = currentOffset;
+
+            const view = new DataView(buffer);
+            const posBuffer = new Float32Array(vertexCount * 3);
+            const rotBuffer = new Float32Array(vertexCount * 4);
+            const scaleBuffer = new Float32Array(vertexCount * 3);
+            const colBuffer = new Float32Array(vertexCount * 4);
+            
+            let validCount = 0;
+            let fileOffset = bodyStart;
+
+            const off = {
+                x: propMap['x']?.offset, y: propMap['y']?.offset, z: propMap['z']?.offset,
+                op: propMap['opacity']?.offset,
+                dc0: propMap['f_dc_0']?.offset,
+                rot0: propMap['rot_0']?.offset,
+                s0: propMap['scale_0']?.offset
+            };
+            const hasRot = off.rot0 !== undefined;
+            const hasScale = off.s0 !== undefined;
+            const hasColor = off.dc0 !== undefined;
+
+            for(let i=0; i<vertexCount; i++) {
+                if(fileOffset + vertexStride > buffer.byteLength) break;
+                
+                const x = view.getFloat32(fileOffset + off.x, true);
+                if(isNaN(x)) { fileOffset += vertexStride; continue; }
+
+                let opacity = 1.0;
+                if(off.op !== undefined) {
+                    opacity = 1.0 / (1.0 + Math.exp(-view.getFloat32(fileOffset + off.op, true)));
+                }
+                if(opacity < state.minOpacity) { fileOffset += vertexStride; continue; }
+
+                posBuffer[validCount*3] = x;
+                posBuffer[validCount*3+1] = view.getFloat32(fileOffset + off.y, true);
+                posBuffer[validCount*3+2] = view.getFloat32(fileOffset + off.z, true);
+
+                if(hasRot) {
+                    rotBuffer[validCount*4] = view.getFloat32(fileOffset + off.rot0 + 4, true);
+                    rotBuffer[validCount*4+1] = view.getFloat32(fileOffset + off.rot0 + 8, true);
+                    rotBuffer[validCount*4+2] = view.getFloat32(fileOffset + off.rot0 + 12, true);
+                    rotBuffer[validCount*4+3] = view.getFloat32(fileOffset + off.rot0, true);
+                } else {
+                    rotBuffer[validCount*4+3] = 1;
+                }
+
+                if(hasScale) {
+                    scaleBuffer[validCount*3] = Math.exp(view.getFloat32(fileOffset + off.s0, true));
+                    scaleBuffer[validCount*3+1] = Math.exp(view.getFloat32(fileOffset + off.s0 + 4, true));
+                    scaleBuffer[validCount*3+2] = Math.exp(view.getFloat32(fileOffset + off.s0 + 8, true));
+                } else {
+                    scaleBuffer.fill(0.1, validCount*3, validCount*3+3);
+                }
+
+                if(hasColor) {
+                    colBuffer[validCount*4] = 0.5 + SH_C0 * view.getFloat32(fileOffset + off.dc0, true);
+                    colBuffer[validCount*4+1] = 0.5 + SH_C0 * view.getFloat32(fileOffset + off.dc0 + 4, true);
+                    colBuffer[validCount*4+2] = 0.5 + SH_C0 * view.getFloat32(fileOffset + off.dc0 + 8, true);
+                } else {
+                    colBuffer.fill(0.5, validCount*4, validCount*4+3);
+                }
+                colBuffer[validCount*4+3] = opacity;
+
+                validCount++;
+                fileOffset += vertexStride;
+            }
+
+            geometryData = {
+                count: validCount,
+                pos: posBuffer.slice(0, validCount*3),
+                rot: rotBuffer.slice(0, validCount*4),
+                scale: scaleBuffer.slice(0, validCount*3),
+                col: colBuffer.slice(0, validCount*4)
+            };
+
+            createSplatMesh(geometryData);
+            autoFocusCamera();
+            
+            loadingSys.stop();
+            document.getElementById('stat-points').innerText = (validCount/1000000).toFixed(2) + "M";
+        }
+
+        function createSplatMesh(data) {
+            if(splatMesh) { scene.remove(splatMesh); splatMesh.geometry.dispose(); }
+
+            const baseGeo = new THREE.PlaneGeometry(1, 1);
+            const geo = new THREE.InstancedBufferGeometry();
+            
+            geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0,0,0), 50); 
+            geo.frustumCulled = false;
+
+            geo.index = baseGeo.index;
+            geo.attributes.position = baseGeo.attributes.position;
+            geo.attributes.uv = baseGeo.attributes.uv;
+
+            geo.setAttribute('instPosition', new THREE.InstancedBufferAttribute(data.pos, 3));
+            geo.setAttribute('instRotation', new THREE.InstancedBufferAttribute(data.rot, 4));
+            geo.setAttribute('instScale', new THREE.InstancedBufferAttribute(data.scale, 3));
+            geo.setAttribute('instColor', new THREE.InstancedBufferAttribute(data.col, 4));
+
+            const mat = new THREE.ShaderMaterial({
+                uniforms: {
+                    uSplatScale: { value: state.splatScale },
+                    uOpacityMod: { value: state.opacity },
+                    uBrightness: { value: state.brightness },
+                    uTime: { value: 0 },
+                    uTurbulence: { value: 0 },
+                    uFlowAmp: { value: state.flowAmp },
+                    uFlowFreq: { value: state.flowFreq },
+                    uFlowSpeed: { value: state.flowSpeed },
+                    uModelCenter: { value: data.center || new THREE.Vector3() }
+                },
+                vertexShader: `
+                    uniform float uSplatScale;
+                    uniform float uTime;
+                    uniform float uTurbulence;
+                    uniform float uFlowAmp;
+                    uniform float uFlowFreq;
+                    uniform float uFlowSpeed;
+                    uniform vec3 uModelCenter;
+                    
+                    attribute vec3 instPosition;
+                    attribute vec4 instRotation;
+                    attribute vec3 instScale;
+                    attribute vec4 instColor;
+                    
+                    varying vec4 vColor;
+                    varying vec2 vUv;
+                    
+                    mat3 getRotationMatrix(vec4 q) {
+                        float x=q.x, y=q.y, z=q.z, w=q.w;
+                        float x2=x+x, y2=y+y, z2=z+z;
+                        float xx=x*x2, xy=x*y2, xz=x*z2, yy=y*y2, yz=y*z2, zz=z*z2;
+                        float wx=w*x2, wy=w*y2, wz=w*z2;
+                        return mat3(1.0-(yy+zz), xy-wz, xz+wy, xy+wz, 1.0-(xx+zz), yz-wx, xz-wy, yz+wx, 1.0-(xx+yy));
+                    }
+                    
+                    // Improved curl noise with dynamic params and moving domain for fish-like swimming
+                    vec3 curl(vec3 p, float t, float freq) {
+                        // Moving domain to simulate swimming/current
+                        vec3 p_move = p * freq + vec3(t * 0.5, t * 0.3, t * 0.2);
+                        
+                        float x = sin(p_move.y) + cos(p_move.z);
+                        float y = sin(p_move.z) + cos(p_move.x);
+                        float z = sin(p_move.x) + cos(p_move.y);
+                        
+                        // Add a second layer for complexity (Octave)
+                        vec3 p_move2 = p * freq * 2.0 - vec3(t, t, t);
+                        x += (sin(p_move2.y) + cos(p_move2.z)) * 0.5;
+                        y += (sin(p_move2.z) + cos(p_move2.x)) * 0.5;
+                        z += (sin(p_move2.x) + cos(p_move2.y)) * 0.5;
+                        
+                        return vec3(x, y, z);
+                    }
+
+                    void main() {
+                        vUv = uv; vColor = instColor;
+                        
+                        vec3 pos = position * instScale * uSplatScale;
+                        pos = getRotationMatrix(instRotation) * pos;
+                        
+                        vec3 centerPos = instPosition;
+                        
+                        // Turbulence logic
+                        if(uTurbulence > 0.001) {
+                            // Calculate swimming direction using moving curl noise
+                            vec3 swimDir = curl(centerPos, uTime * uFlowSpeed, uFlowFreq);
+                            
+                            // Apply the swimming motion
+                            // Instead of radial push, we let them wander in the flow field
+                            centerPos += swimDir * uTurbulence * uFlowAmp; 
+                        }
+                        
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos + centerPos, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    uniform float uOpacityMod;
+                    uniform float uBrightness;
+                    varying vec4 vColor;
+                    varying vec2 vUv;
+                    void main() {
+                        vec2 c = vUv * 2.0 - 1.0;
+                        if(dot(c,c) > 1.0) discard;
+                        float a = exp(-dot(c,c) * 2.0) * vColor.a * uOpacityMod;
+                        if(a < 0.05) discard;
+                        gl_FragColor = vec4(vColor.rgb * uBrightness, a);
+                    }
+                `,
+                side: THREE.DoubleSide,
+                depthWrite: true,
+                depthTest: true
+            });
+
+            splatMesh = new THREE.Mesh(geo, mat);
+            splatMesh.rotation.x = Math.PI; 
+            scene.add(splatMesh);
+        }
+
+        function addModelToScene(data, name, rawBuffer, center) {
+            const modelId = modelIdCounter++;
+            
+            // Create mesh
+            const baseGeo = new THREE.PlaneGeometry(1, 1);
+            const geo = new THREE.InstancedBufferGeometry();
+            geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0,0,0), 50);
+            geo.frustumCulled = false;
+            geo.index = baseGeo.index;
+            geo.attributes.position = baseGeo.attributes.position;
+            geo.attributes.uv = baseGeo.attributes.uv;
+            geo.setAttribute('instPosition', new THREE.InstancedBufferAttribute(data.pos, 3));
+            geo.setAttribute('instRotation', new THREE.InstancedBufferAttribute(data.rot, 4));
+            geo.setAttribute('instScale', new THREE.InstancedBufferAttribute(data.scale, 3));
+            geo.setAttribute('instColor', new THREE.InstancedBufferAttribute(data.col, 4));
+
+            const mat = new THREE.ShaderMaterial({
+                uniforms: {
+                    uSplatScale: { value: state.splatScale },
+                    uOpacityMod: { value: state.opacity },
+                    uBrightness: { value: state.brightness },
+                    uTime: { value: 0 },
+                    uTurbulence: { value: 0 },
+                    uFlowAmp: { value: state.flowAmp },
+                    uFlowFreq: { value: state.flowFreq },
+                    uFlowSpeed: { value: state.flowSpeed },
+                    uModelCenter: { value: center }
+                },
+                vertexShader: `
+                    uniform float uSplatScale;
+                    uniform float uTime;
+                    uniform float uTurbulence;
+                    uniform float uFlowAmp;
+                    uniform float uFlowFreq;
+                    uniform float uFlowSpeed;
+                    uniform vec3 uModelCenter;
+                    
+                    attribute vec3 instPosition;
+                    attribute vec4 instRotation;
+                    attribute vec3 instScale;
+                    attribute vec4 instColor;
+                    
+                    varying vec4 vColor;
+                    varying vec2 vUv;
+                    
+                    mat3 getRotationMatrix(vec4 q) {
+                        float x=q.x, y=q.y, z=q.z, w=q.w;
+                        float x2=x+x, y2=y+y, z2=z+z;
+                        float xx=x*x2, xy=x*y2, xz=x*z2, yy=y*y2, yz=y*z2, zz=z*z2;
+                        float wx=w*x2, wy=w*y2, wz=w*z2;
+                        return mat3(1.0-(yy+zz), xy-wz, xz+wy, xy+wz, 1.0-(xx+zz), yz-wx, xz-wy, yz+wx, 1.0-(xx+yy));
+                    }
+                    
+                    vec3 curl(vec3 p, float t, float freq) {
+                        vec3 p_move = p * freq + vec3(t * 0.5, t * 0.3, t * 0.2);
+                        float x = sin(p_move.y) + cos(p_move.z);
+                        float y = sin(p_move.z) + cos(p_move.x);
+                        float z = sin(p_move.x) + cos(p_move.y);
+                        vec3 p_move2 = p * freq * 2.0 - vec3(t, t, t);
+                        x += (sin(p_move2.y) + cos(p_move2.z)) * 0.5;
+                        y += (sin(p_move2.z) + cos(p_move2.x)) * 0.5;
+                        z += (sin(p_move2.x) + cos(p_move2.y)) * 0.5;
+                        return vec3(x, y, z);
+                    }
+
+                    void main() {
+                        vUv = uv; vColor = instColor;
+                        vec3 pos = position * instScale * uSplatScale;
+                        pos = getRotationMatrix(instRotation) * pos;
+                        vec3 centerPos = instPosition;
+                        if(uTurbulence > 0.001) {
+                            vec3 swimDir = curl(centerPos, uTime * uFlowSpeed, uFlowFreq);
+                            centerPos += swimDir * uTurbulence * uFlowAmp; 
+                        }
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos + centerPos, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    uniform float uOpacityMod;
+                    uniform float uBrightness;
+                    varying vec4 vColor;
+                    varying vec2 vUv;
+                    void main() {
+                        vec2 c = vUv * 2.0 - 1.0;
+                        if(dot(c,c) > 1.0) discard;
+                        float a = exp(-dot(c,c) * 2.0) * vColor.a * uOpacityMod;
+                        if(a < 0.05) discard;
+                        gl_FragColor = vec4(vColor.rgb * uBrightness, a);
+                    }
+                `,
+                side: THREE.DoubleSide,
+                depthWrite: true,
+                depthTest: true
+            });
+
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.rotation.x = Math.PI;
+            
+            // Offset position for multiple models
+            const offsetIndex = models.length % 3;
+            const offsetValue = Math.floor(models.length / 3) * 5;
+            mesh.position.set(
+                (offsetIndex - 1) * 3 + offsetValue,
+                0,
+                offsetValue
+            );
+
+            scene.add(mesh);
+
+            // Store model data
+            const model = {
+                id: modelId,
+                name: name,
+                mesh: mesh,
+                position: mesh.position.clone(),
+                rotation: mesh.rotation.clone(),
+                scale: mesh.scale.clone(),
+                visible: true,
+                rawPlyData: rawBuffer,
+                pointCount: data.count,
+                opacity: state.opacity,
+                brightness: state.brightness,
+                splatScale: state.splatScale
+            };
+
+            models.push(model);
+            currentModelId = modelId;
+            
+            updateModelList();
+            updateModelCount();
+        }
+
+        function updateModelList() {
+            const container = document.getElementById('model-list-container');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            models.forEach(model => {
+                const item = document.createElement('div');
+                item.className = `model-item ${model.id === currentModelId ? 'active' : ''}`;
+                item.onclick = () => selectModel(model.id);
+                
+                item.innerHTML = `
+                    <div class="model-item-name">${model.name}</div>
+                    <div class="model-item-info">
+                        <span>${(model.pointCount/1000).toFixed(1)}k</span>
+                        <span>${model.visible ? '✓' : '✗'}</span>
+                    </div>
+                    <div class="model-item-actions">
+                        <button class="model-btn" onclick="event.stopPropagation(); toggleModelVisibility(${model.id})">Visible</button>
+                        <button class="model-btn delete" onclick="event.stopPropagation(); deleteModel(${model.id})">Delete</button>
+                    </div>
+                `;
+                
+                container.appendChild(item);
+            });
+        }
+
+        function updateModelCount() {
+            const countEl = document.getElementById('model-count');
+            if (countEl) {
+                countEl.innerText = models.length;
+            }
+        }
+
+        function selectModel(modelId) {
+            currentModelId = modelId;
+            updateModelList();
+        }
+
+        function toggleModelVisibility(modelId) {
+            const model = models.find(m => m.id === modelId);
+            if(model) {
+                model.visible = !model.visible;
+                model.mesh.visible = model.visible;
+                updateModelList();
+            }
+        }
+
+        function deleteModel(modelId) {
+            const index = models.findIndex(m => m.id === modelId);
+            if(index !== -1) {
+                const model = models[index];
+                scene.remove(model.mesh);
+                model.mesh.geometry.dispose();
+                model.mesh.material.dispose();
+                models.splice(index, 1);
+                
+                if(currentModelId === modelId) {
+                    currentModelId = models.length > 0 ? models[models.length - 1].id : null;
+                }
+                
+                updateModelList();
+                updateModelCount();
+            }
+        }
+
+        // Expose functions to global scope
+        window.toggleModelList = () => {
+            const panel = document.getElementById('model-list-panel');
+            if (panel) panel.classList.toggle('visible');
+        };
+
+        window.toggleModelVisibility = toggleModelVisibility;
+        window.deleteModel = deleteModel;
+        window.selectModel = selectModel;
+
+        function autoFocusCamera() {
+            if(!geometryData || !splatMesh) return;
+            let d = 0;
+            const p = geometryData.pos;
+            for(let i=0; i<300; i+=3) d += Math.sqrt(p[i]*p[i]+p[i+1]*p[i+1]+p[i+2]*p[i+2]);
+            const radius = (d/100) || 10;
+            
+            camera.position.set(0, 0, radius * 3);
+            camera.lookAt(0,0,0);
+            physics.targetRot.copy(camera.rotation);
+            physics.currRot.copy(camera.rotation);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = Math.min(clock.getDelta(), 0.1);
+
+            updatePhysics(dt);
+            
+            // Update Turbulence Transition
+            if (splatMesh) {
+                // Smoothly interpolate current turbulence towards target state
+                const lerpSpeed = 0.5 * dt;
+                currentTurbulence += (state.turbulence - currentTurbulence) * lerpSpeed;
+                
+                splatMesh.material.uniforms.uTurbulence.value = currentTurbulence;
+                splatMesh.material.uniforms.uTime.value = clock.getElapsedTime();
+            }
+            
+            document.getElementById('stat-fps').innerText = Math.round(1/dt);
+            renderer.render(scene, camera);
+        }
+        
+        // Remove duplicate window 'load' listener as it's now handled in init()
+
+    </script>
+</body>
+</html>
