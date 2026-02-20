@@ -2162,13 +2162,5 @@ Modded with ❤️ by Chidc with CPU-Mode-Provider GemosDoDo
 ## 版本号命名规则
 
 本项目采用 **[Month].[Day].[HHMM]** 格式的版本号命名规则：
-
-- **格式说明**: 月份.日期.时分（24小时制）
-- **示例**: `02.05.1900` 表示 2026年2月5日19:00
-- **优势**: 
-  - 简洁明了，易于识别
-  - 包含时间信息，便于追踪
-  - 符合时间递增特性
-
-README.md Version Code **02.20.1800**
+README.md Version Code **02.20.1422**
 </div>
