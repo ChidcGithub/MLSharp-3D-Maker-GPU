@@ -106,7 +106,8 @@ MLSharp-3D-Maker-GPU-by-Chidc/
 
 ### 最新更新（2026-02-20）
 
-**日志与错误处理增强 02.20.1800**
+**日志与错误处理增强 02.20.1425**
+- **添加多语言支持** - 添加英文版翻译及应用多语言支持
 - **日志样式提升** - 增加彩色输出、图标和详细上下文信息（文件名、函数名、行号）
 - **多样化日志方法** - 添加 `styled_section`, `progress_info`, `performance`, `gpu_info`, `cache_info` 等新方法
 - **错误处理增强** - 改进所有空 `except:` 子句，替换为具体异常处理
@@ -2114,12 +2115,18 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
    - 结果打包下载
 
 #### 低优先级
-1. **插件系统** - 可扩展架构
+1. **国际化** - 多语言支持 ✅ 已完成
+   - i18n 支持 ✅
+   - 中英文界面 ✅
+   - 可扩展语言包 ✅
+   - 配置文件支持 ✅
+
+2. **插件系统** - 可扩展架构
    - 自定义插件
    - 模型插件
    - 后处理插件
 
-2. **批处理 API** - 批量图片处理
+3. **批处理 API** - 批量图片处理
    - 多文件上传
    - 批量预测
    - 结果打包下载
@@ -2149,12 +2156,14 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 
 <div align="center">
 
+### 版本号命名规则
+
+本项目采用 **[Month].[Day].[HHMM]** 格式的版本号命名规则：
+README.md Version Code **02.20.1428**
+
 **如果这个项目对你有帮助，请给个 ⭐️ Star！**
 
 Modded with ❤️ by Chidc with CPU-Mode-Provider GemosDoDo
 
-## 版本号命名规则
 
-本项目采用 **[Month].[Day].[HHMM]** 格式的版本号命名规则：
-README.md Version Code **02.20.1422**
 </div>
