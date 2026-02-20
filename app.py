@@ -249,10 +249,6 @@ def merge_config_with_args(config: Dict[str, Any], args: CLIArgs) -> Dict[str, A
     if not args.enable_smart_reclaim:
         config.setdefault('gpu', {})['enable_smart_reclaim'] = False
     
-    # 语言配置
-    if args.language != 'zh':  # 默认为中文
-        config['language'] = args.language
-    
     return config
 
 
@@ -291,8 +287,7 @@ def config_to_cli_args(config: Dict[str, Any]) -> CLIArgs:
         enable_auto_gc=gpu.get('enable_auto_gc', True),
         auto_gc_interval=gpu.get('auto_gc_interval', 30),
         auto_gc_threshold=gpu.get('auto_gc_threshold', 85.0),
-        enable_smart_reclaim=gpu.get('enable_smart_reclaim', True),
-        language=config.get('language', 'zh')
+        enable_smart_reclaim=gpu.get('enable_smart_reclaim', True)
     )
 
 
