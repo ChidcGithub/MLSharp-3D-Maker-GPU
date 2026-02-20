@@ -106,7 +106,8 @@ MLSharp-3D-Maker-GPU-by-Chidc/
 
 ### 最新更新（2026-02-20）
 
-**日志与错误处理增强 02.20.1800**
+**日志与错误处理增强 02.20.1425**
+- **添加多语言支持** - 添加英文版翻译及应用多语言支持
 - **日志样式提升** - 增加彩色输出、图标和详细上下文信息（文件名、函数名、行号）
 - **多样化日志方法** - 添加 `styled_section`, `progress_info`, `performance`, `gpu_info`, `cache_info` 等新方法
 - **错误处理增强** - 改进所有空 `except:` 子句，替换为具体异常处理
@@ -2155,20 +2156,14 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 
 <div align="center">
 
+### 版本号命名规则
+
+本项目采用 **[Month].[Day].[HHMM]** 格式的版本号命名规则：
+README.md Version Code **02.20.1428**
+
 **如果这个项目对你有帮助，请给个 ⭐️ Star！**
 
 Modded with ❤️ by Chidc with CPU-Mode-Provider GemosDoDo
 
-## 版本号命名规则
 
-本项目采用 **[Month].[Day].[HHMM]** 格式的版本号命名规则：
-
-- **格式说明**: 月份.日期.时分（24小时制）
-- **示例**: `02.05.1900` 表示 2026年2月5日19:00
-- **优势**: 
-  - 简洁明了，易于识别
-  - 包含时间信息，便于追踪
-  - 符合时间递增特性
-
-README.md Version Code **02.20.1800**
 </div>

@@ -1,4 +1,5 @@
-```       _____                    _____            _____                    _____                    _____                    _____                    _____          
+```
+          _____                    _____            _____                    _____                    _____                    _____                    _____          
          /\    \                  /\    \          /\    \                  /\    \                  /\    \                  /\    \                  /\    \         
         /::\____\                /::\____\        /::\    \                /::\____\                /::\    \                /::\    \                /::\    \        
        /::::|   |               /:::/    /       /::::\    \              /:::/    /               /::::\    \              /::::\    \              /::::\    \       
@@ -19,7 +20,7 @@
         /:::/    /              \:::\____\       \::::/    /               /:::/    /               /:::/    /              \::|   |                                   
         \::/    /                \::/    /        \::/    /                \::/    /                \::/    /                \:|   |                                   
          \/____/                  \/____/          \/____/                  \/____/                  \/____/                  \|___|                                    
-```                                                                                                                                                           
+```                                                                                                                                                          
 
 # MLSharp 3D Maker
 
@@ -31,7 +32,7 @@
 ![CUDA](https://img.shields.io/badge/CUDA-11.8+-green.svg)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 ![Platform](https://img.shields.io/badge/Platform-Windows|Linux-lightgrey.svg)
-![GPU](https://img.sh.io/badge/GPU-NVIDIA|AMD|Intel-orange.svg)
+![GPU](https://img.shields.io/badge/GPU-NVIDIA|AMD|Intel-orange.svg)
 ![API](https://img.shields.io/badge/API-RESTful-blueviolet.svg)
 [![stars](https://img.shields.io/github/stars/chidcGithub/MLSharp-3D-Maker-GPU)](https://github.com/chidcGithub/MLSharp-3D-Maker-GPU)
 [![GitHub Release (including pre-releases)](https://img.shields.io/github/v/release/chidcGithub/MLSharp-3D-Maker-GPU?include_prereleases&label=latest)](https://github.com/chidcGithub/MLSharp-3D-Maker-GPU/releases)
