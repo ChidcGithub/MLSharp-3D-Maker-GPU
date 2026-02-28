@@ -106,7 +106,7 @@ MLSharp-3D-Maker-GPU-by-Chidc/
 
 ### Latest Update (2026-02-28)
 
-**Optimize the Code, Fix Errors, Complete the Multilingual Module 2.28.1500 (2026-02-28)**
+**Optimize the Code, Fix Errors, Complete the Multilingual Module 2.28.1500**
 - **Code Robustness Significantly Improved**
   - Fixed CLIArgs missing no_cache field issue
   - Fixed Logger method duplicate definition issue
