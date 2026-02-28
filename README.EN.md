@@ -104,7 +104,35 @@ MLSharp-3D-Maker-GPU-by-Chidc/
 <details>
 <summary><b>Click to expand latest update details</b></summary>
 
-### Latest Update (2026-02-20)
+### Latest Update (2026-02-28)
+
+**Optimize the Code, Fix Errors, Complete the Multilingual Module 2.28.1500 (2026-02-28)**
+- **Code Robustness Significantly Improved**
+  - Fixed CLIArgs missing no_cache field issue
+  - Fixed Logger method duplicate definition issue
+  - Fixed Pydantic v2 deprecated parameters (min_items → min_length)
+  - Fixed metrics.py thread safety issue (using threading.Event)
+  - Fixed app.py GPUManager thread safety issue
+  - Fixed traceback.format_exc() non-exception context call issue
+- **Security Enhancements**
+  - Added RestrictedUnpickler to prevent pickle deserialization attacks
+  - Added file upload type validation (magic number check)
+  - Added path traversal attack protection
+  - Added request size limit
+  - Added sensitive information leak protection
+  - Added configuration file path validation
+- **Stability Improvements**
+  - Fixed gpu_utils.py silent exception issue
+  - Fixed file handle leak issue
+  - Fixed monitoring middleware race condition
+  - Added logger.py file handle close mechanism
+- **Multi-language Support Improvements**
+  - Fixed all hardcoded Chinese strings
+  - Complete Chinese and English translation support
+  - Added translation key missing warning feature
+  - CLI parameter help text internationalization
+  - API error message internationalization
+  - Startup banner and log message internationalization
 
 **Logging and Error Handling Enhancement 02.20.1425**
 - **Logging Style Enhancement** - Added color output, icons and detailed context information (filename, function name, line number)
@@ -124,43 +152,6 @@ MLSharp-3D-Maker-GPU-by-Chidc/
 - **Startup Script Fix** - Removed hardcoded IP address in `Start.ps1`, improved portability
 - **Resource Management Optimization** - Improved temporary file and resource cleanup mechanisms, prevented resource leaks
 - **Test Coverage** - Added stability test cases to ensure stability of key functions
-
-### Previous Update (2026-02-05)
-
-**Code Health Check and Fix 02.05.1914**
-- **Code Quality Improvement** - Fixed unused ProcessPoolExecutor, optimized resource usage
-- **Pydantic v2 Update** - Updated to Pydantic v2 syntax, using @field_validator instead of @validator
-- **Resource Management Optimization** - Added cleanup() method, ensured GPU monitoring threads and Webhook clients close properly
-- **Redis Connection Management** - Added __del__ method, automatically closes Redis connections
-- **Test File Added** - Added test_app.py, including core function tests
-- **Test Script Update** - Updated run_tests.bat and run_tests.ps1, supporting Windows and PowerShell
-- **Test Coverage** - Module import, configuration validation, GPU detection, monitoring metrics and other core functions
-- **Test Results** - All tests passed (4/4)
-- **New Format** - Adopted [Month].[Day].[HHMM] format (e.g., 02.05.1900)
-- **Description** - Month.Day.HourMinute (24-hour format)
-
-**Snapdragon GPU Adaptation 02.03.1851**
-- **Main Branch Removed Adreno GPU Support** - Removed Snapdragon/Adreno series GPU support
-
-**GPU Memory Auto Reclamation 02.03.1851**
-- **Memory Information Query** - Real-time GPU memory usage (total, used, available, usage rate)
-- **Cache Cleanup** - Automatically clear PyTorch reserved but unused memory
-- **Force Garbage Collection** - Complete garbage collection process (clear cache → sync GPU → Python GC → clear again)
-- **Smart Memory Reclamation** - Automatically clean when memory usage exceeds threshold (default 85%)
-- **Auto Memory Monitoring** - Background thread regularly checks and automatically clears memory (default every 30 seconds)
-- **Command Line Parameters** - Supports `--enable-auto-gc`, `--auto-gc-interval`, `--auto-gc-threshold` parameters
-- **Configuration File Support** - Configure memory reclamation strategy in config.yaml
-- **Performance Optimization** - Prevent memory leaks, improve system stability
-- **Logging** - Detailed memory cleanup logs for debugging
-
-**Snapdragon GPU Adaptation 01.31.1931**
-- **Adreno GPU Detection** - Automatically detect Snapdragon/Adreno series GPU
-- **Qualcomm Mode** - Added `--mode qualcomm` startup mode
-- **ONNX Runtime Support** - Added ONNX Runtime + DirectML acceleration solution
-- **Smart Fallback** - Automatically use CPU mode when detecting Snapdragon GPU
-- **Platform Support** - Windows/Android platform identification
-- **Documentation Update** - Added Snapdragon GPU support instructions and limitations
-
 
 </details>
 
@@ -1071,6 +1062,49 @@ redis:
 
 ---
 
+## Version History
+
+<details>
+<summary><b>Click to expand version history</b></summary>
+
+**Code Health Check and Fix 02.05.1914**
+- **Code Quality Improvement** - Fixed unused ProcessPoolExecutor, optimized resource usage
+- **Pydantic v2 Update** - Updated to Pydantic v2 syntax, using @field_validator instead of @validator
+- **Resource Management Optimization** - Added cleanup() method, ensured GPU monitoring threads and Webhook clients close properly
+- **Redis Connection Management** - Added __del__ method, automatically closes Redis connections
+- **Test File Added** - Added test_app.py, including core function tests
+- **Test Script Update** - Updated run_tests.bat and run_tests.ps1, supporting Windows and PowerShell
+- **Test Coverage** - Module import, configuration validation, GPU detection, monitoring metrics and other core functions
+- **Test Results** - All tests passed (4/4)
+- **New Format** - Adopted [Month].[Day].[HHMM] format (e.g., 02.05.1900)
+- **Description** - Month.Day.HourMinute (24-hour format)
+
+**Snapdragon GPU Adaptation 02.03.1851**
+- **Main Branch Removed Adreno GPU Support** - Removed Snapdragon/Adreno series GPU support
+
+**GPU Memory Auto Reclamation 02.03.1851**
+- **Memory Information Query** - Real-time GPU memory usage (total, used, available, usage rate)
+- **Cache Cleanup** - Automatically clear PyTorch reserved but unused memory
+- **Force Garbage Collection** - Complete garbage collection process (clear cache → sync GPU → Python GC → clear again)
+- **Smart Memory Reclamation** - Automatically clean when memory usage exceeds threshold (default 85%)
+- **Auto Memory Monitoring** - Background thread regularly checks and automatically clears memory (default every 30 seconds)
+- **Command Line Parameters** - Supports `--enable-auto-gc`, `--auto-gc-interval`, `--auto-gc-threshold` parameters
+- **Configuration File Support** - Configure memory reclamation strategy in config.yaml
+- **Performance Optimization** - Prevent memory leaks, improve system stability
+- **Logging** - Detailed memory cleanup logs for debugging
+
+**Snapdragon GPU Adaptation 01.31.1931**
+- **Adreno GPU Detection** - Automatically detect Snapdragon/Adreno series GPU
+- **Qualcomm Mode** - Added `--mode qualcomm` startup mode
+- **ONNX Runtime Support** - Added ONNX Runtime + DirectML acceleration solution
+- **Smart Fallback** - Automatically use CPU mode when detecting Snapdragon GPU
+- **Platform Support** - Windows/Android platform identification
+- **Documentation Update** - Added Snapdragon GPU support instructions and limitations
+
+</details>
+
+---
+
 ## Future Improvements
 
 <details>
@@ -1144,12 +1178,10 @@ Welcome to submit **Issues** and **Pull Requests!**
           
 ### Version Number Naming Rule
 
-This project adopts the **[Month].[Day].[HHMM]** format version number naming rule:
-
+This project adopts the **[Month].[Day].[HHMM]** format version number naming rule
 
 **If this project is helpful to you, please give a ⭐️ Star!**
-
 Modded with ❤️ by Chidc with CPU-Mode-Provider GemosDoDo
 
-README.md Version Code **02.20.1800**
+README.md Version Code **02.28.1500**
 </div>

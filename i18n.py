@@ -474,6 +474,319 @@ class I18n:
                 
                 # 新增：推理缓存
                 'inference_cache_enabled': '[缓存] 推理缓存: 已启用（最大 {} 条）',
+                
+                # Logger 类日志格式标签
+                'log_error': '错误',
+                'log_solution': '解决方案',
+                'log_detail_error': '详细错误信息',
+                'log_exception': '异常',
+                'log_detail_exception': '详细异常信息',
+                'log_critical': '严重错误',
+                'log_emergency_solution': '紧急解决方案',
+                'log_performance': '性能',
+                'log_gpu': 'GPU',
+                'log_cache': '缓存',
+                
+                # GPU 初始化相关
+                'gpu_init_failed': '设备初始化失败: {}',
+                'gpu_memory_management': '\nGPU 内存管理:',
+                'configure_optimizations': '\n根据显卡能力配置优化:',
+                'cudnn_enable_failed': '  cuDNN Benchmark: 启用失败 ({})',
+                'cudnn_not_applicable': '  cuDNN Benchmark: 不适用(非 NVIDIA GPU)',
+                'tf32_enable_failed': '  TensorFloat32: 启用失败 ({})',
+                'tf32_not_applicable': '  TensorFloat32: 不适用(非 NVIDIA GPU)',
+                
+                # GPU 内存管理
+                'gpu_unavailable_skip_cache': 'GPU 不可用，跳过缓存清理',
+                'gpu_unavailable_skip_gc': 'GPU 不可用，跳过垃圾回收',
+                
+                # 命令行参数帮助文本
+                'arg_mode_help': '启动模式：auto(自动), gpu(GPU), cpu(CPU), nvidia(NVIDIA), amd(AMD)',
+                'arg_port_help': 'Web 服务端口（默认：8000）',
+                'arg_host_help': 'Web 服务主机地址（默认：127.0.0.1）',
+                'arg_no_browser_help': '不自动打开浏览器',
+                'arg_no_amp_help': '禁用混合精度推理（AMP）',
+                'arg_no_cudnn_help': '禁用 cuDNN Benchmark',
+                'arg_config_help': '配置文件路径（支持 YAML 和 JSON）',
+                'arg_input_size_help': '输入图像尺寸（默认：1536 1536）',
+                'arg_gradient_help': '启用梯度检查点（减少显存占用，但会略微降低推理速度）',
+                'arg_segments_help': '梯度检查点分段数 (默认: 3)',
+                'arg_cache_help': '启用推理缓存（默认：启用）',
+                'arg_no_cache_help': '禁用推理缓存',
+                'arg_cache_size_help': '缓存最大条目数（默认：100）',
+                'arg_clear_cache_help': '启动时清空缓存',
+                'arg_auto_tune_help': '启用性能自动调优（启动时自动测试并选择最优配置）',
+                'arg_redis_help': 'Redis 连接 URL（例如：redis://localhost:6379/0）',
+                'arg_webhook_help': '启用 Webhook 通知',
+                'arg_auto_gc_help': '启用 GPU 自动垃圾回收（默认：启用）',
+                'arg_no_auto_gc_help': '禁用 GPU 自动垃圾回收',
+                'arg_gc_interval_help': 'GPU 自动垃圾回收检查间隔（秒，默认：30）',
+                'arg_gc_threshold_help': 'GPU 显存使用率阈值，超过时自动清理（百分比，默认：85.0）',
+                'arg_smart_reclaim_help': '启用智能内存回收（默认：启用）',
+                'arg_no_smart_reclaim_help': '禁用智能内存回收',
+                'arg_lang_help': '界面语言 (zh=中文, en=English)',
+                
+                # 配置文件相关错误消息
+                'config_format_unsupported': '不支持的配置文件格式: {}',
+                'config_not_found': '配置文件不存在: {}',
+                'config_path_unexpected': '配置文件不在预期目录内: {}',
+                'config_load_failed': '加载配置文件失败: {}',
+                
+                # validate_input_size 消息 (使用 print)
+                'print_size_mismatch': '[WARNING] 输入尺寸宽度和高度不相等 ({}x{})，模型使用正方形输入',
+                'print_adjusted': '[INFO] 已调整为 {}x{}',
+                'print_exceeds_max': '[WARNING] 输入尺寸 {}x{} 超过最大支持尺寸 {}x{}',
+                'print_patch_error': '[WARNING] SPN 编码器在更大尺寸下会出现补丁分割错误',
+                'print_not_divisible': '[WARNING] 输入尺寸 {}x{} 不能被 64 整除',
+                'print_still_exceeds': '[WARNING] 调整后的尺寸 {}x{} 仍然超过最大支持尺寸',
+                
+                # progress_info 默认消息
+                'progress_processing': '处理中',
+                
+                # API 响应消息
+                'api_unsupported_file_type': '不支持的文件类型: {}',
+                'api_supported_formats': '请上传 JPG、PNG、WebP 或 BMP 格式的图片',
+                'api_path_traversal': '无效的路径',
+                'api_save_failed': '保存上传文件失败: {}',
+                'api_check_format': '请检查文件格式是否正确或联系技术支持',
+                'api_load_image_failed': '加载图像失败: {}',
+                'api_check_image_format': '请检查上传的图片格式是否支持(JPG/PNG等)',
+                'api_image_too_large': '图片尺寸过大 ({}x{}),可能导致性能问题',
+                'api_redis_failed': 'Redis缓存获取失败: {}, 将使用本地缓存',
+                'api_ply_save_failed': '缓存结果PLY保存失败: {}',
+                'api_check_disk': '请检查磁盘空间或联系技术支持',
+                'api_rename_failed': '重命名文件失败: {}',
+                'api_vram_insufficient': '显存不足,请使用较小的图片',
+                'api_vram_solution': '建议使用小于 1024x1024 的图片,或关闭其他占用显存的程序',
+                'api_inference_failed': '推理过程失败: {}',
+                'api_retry_or_small': '请尝试重新启动程序或使用较小的图片',
+                'api_redis_cache_failed': 'Redis 缓存失败: {}',
+                'api_ply_save_failed2': 'PLY保存失败: {}',
+                'api_processing_failed': '处理失败: {}',
+                'api_internal_error': '服务器内部错误，请稍后重试',
+                'api_resource_not_found': '请求的资源不存在',
+                'api_validation_failed': '请求参数验证失败',
+                
+                # 启动横幅
+                'banner_title': '3D 模型生成工具 - 自动检测 GPU',
+                'banner_modes': '支持模式:',
+                'banner_nvidia': 'NVIDIA GPU (CUDA)',
+                'banner_amd': 'AMD GPU (ROCm)',
+                'banner_intel': 'Intel GPU (CPU 回退)',
+                'banner_cpu': 'CPU 模式',
+                
+                # 性能调优配置名称
+                'tune_baseline': '基准配置',
+                'tune_baseline_desc': '无任何优化',
+                'tune_amp_only': '仅 AMP',
+                'tune_amp_only_desc': '仅启用混合精度推理',
+                'tune_cudnn_only': '仅 cuDNN Benchmark',
+                'tune_cudnn_only_desc': '仅启用 cuDNN 自动调优',
+                'tune_tf32_only': '仅 TF32',
+                'tune_tf32_only_desc': '仅启用 TensorFloat32',
+                'tune_amp_cudnn': 'AMP + cuDNN',
+                'tune_amp_cudnn_desc': 'AMP 和 cuDNN 自动调优',
+                'tune_amp_tf32': 'AMP + TF32',
+                'tune_amp_tf32_desc': 'AMP 和 TensorFloat32',
+                'tune_all': '全部优化',
+                'tune_all_desc': '启用所有优化',
+                'tune_non_nvidia': '非 NVIDIA GPU，仅测试 AMP 优化',
+                'tune_skip_cudnn': '显卡计算能力 < 6.0，跳过 cuDNN Benchmark',
+                'tune_skip_tf32': '显卡不支持 TF32，跳过 TF32 测试',
+                
+                # 其他
+                'cli_description': 'MLSharp 3D模型生成工具',
+                'model_import_failed': 'Sharp 模块导入失败: {}',
+                'model_import_solution': '可能的原因:\n1. Sharp 库未安装\n2. 模型文件路径错误\n3. Python 环境配置不正确\n\n解决方案:\n- 检查 model_assets/ 文件夹是否存在\n- 重新安装依赖: pip install -r requirements.txt\n- 确保使用正确的 Python 环境',
+                'model_weights_failed': '模型加载失败: {}',
+                'model_weights_solution': '请检查:\n1. 模型文件是否完整\n2. PyTorch 版本是否兼容\n3. 是否有足够的内存/显存\n4. Python 环境是否正确配置',
+                'grad_checkpoint_failed': '应用梯度检查点失败: {}',
+                'grad_checkpoint_fallback': '梯度检查点未启用，将使用正常推理模式',
+                'mixed_precision_fallback': '混合精度推理失败,回退到 FP32: {}',
+                'temp_dir_delete_failed': '删除临时目录失败: {}',
+                'unsafe_unpickle': '不安全的反序列化: {}.{}',
+                'redis_data_untrusted': 'Redis 数据未被信任，跳过反序列化: {}',
+                'redis_deserialize_rejected': 'Redis 缓存数据反序列化被拒绝（安全限制）: {}',
+                'http_client_not_init': 'HTTP 客户端未初始化，无法发送 Webhook',
+                'webhook_send_exception': 'Webhook 发送异常: {} -> {} (错误: {})',
+                
+                # GPU 垃圾回收
+                'gpu_gc_complete': 'GPU 垃圾回收完成 - 设备 {}',
+                'gpu_gc_failed_msg': 'GPU 垃圾回收失败: {}',
+                'gpu_vram_high': 'GPU 显存使用率过高: {:.1f}%',
+                'smart_recovery': '  执行智能内存回收...',
+                'smart_recovery_failed': '智能内存回收失败: {}',
+                'gpu_unavailable_monitor': 'GPU 不可用，跳过自动内存监控',
+                'monitor_exception': '内存监控异常: {}',
+                'gpu_monitor_stopped_msg': 'GPU 自动内存监控已停止',
+                
+                # 缓存管理
+                'cache_hit_debug': '缓存命中: 命中率 {:.1f}% ({}/{})',
+                'cache_evict': '缓存已满，淘汰最旧条目: {}',
+                'cache_added': '缓存已添加: {}',
+                'cache_cleared_msg': '缓存已清空',
+                
+                # Redis 缓存
+                'redis_not_installed_msg': 'redis 模块未安装，Redis 缓存将不可用',
+                'redis_install_cmd_msg': '安装命令: pip install redis',
+                'redis_connection_failed_msg': 'Redis 连接失败: {}',
+                'redis_unavailable_msg': 'Redis 缓存将不可用，使用本地缓存代替',
+                'redis_data_untrusted_msg': 'Redis 数据未被信任，跳过反序列化: {}',
+                'unsafe_deserialize': '不安全的反序列化: {}.{}',
+                'redis_cache_hit': 'Redis 缓存命中: {}',
+                'redis_cache_miss': 'Redis 缓存未命中: {}',
+                'redis_deserialize_rejected_msg': 'Redis 缓存数据反序列化被拒绝（安全限制）: {}',
+                'redis_get_failed': 'Redis 缓存获取失败: {}',
+                'redis_cache_added': 'Redis 缓存已添加: {} (TTL: {}s)',
+                'redis_set_failed': 'Redis 缓存存储失败: {}',
+                'redis_clear_failed': 'Redis 缓存清空失败: {}',
+                
+                # Webhook
+                'httpx_not_installed': 'httpx 模块未安装，Webhook 功能将不可用',
+                'httpx_install_cmd': '安装命令: pip install httpx',
+                'webhook_client_init_msg': 'Webhook 客户端已初始化',
+                'webhook_disabled_msg': 'Webhook 未启用，无法注册',
+                'http_client_not_init_msg': 'HTTP 客户端未初始化，无法发送 Webhook',
+                'webhook_send_failed_msg': 'Webhook 发送失败: {} -> {} (状态码: {})',
+                'webhook_send_exception_msg': 'Webhook 发送异常: {} -> {} (错误: {})',
+                'webhook_client_closed_msg': 'Webhook 客户端已关闭',
+                
+                # 性能调优
+                'test_config_failed': '  测试失败: {}',
+                'best_config_result': '最优配置: {}',
+                'all_tests_failed': '所有配置测试失败，使用默认配置',
+                'no_config_path': '未指定配置文件路径，无法保存调优结果',
+                'load_tuning_cache_failed': '加载性能调优缓存失败: {}',
+                'non_nvidia_amp_only': '非 NVIDIA GPU，仅测试 AMP 优化',
+                'skip_cudnn_low_compute': '显卡计算能力 < 6.0，跳过 cuDNN Benchmark',
+                'skip_tf32_not_supported': '显卡不支持 TF32，跳过 TF32 测试',
+                
+                # API 响应
+                'internal_server_error': '服务器内部错误，请稍后重试',
+                'resource_not_found': '请求的资源不存在',
+                'validation_error': '请求参数验证失败',
+                'cache_clear_msg': '缓存已清空',
+                'get_gpu_mem_failed': '获取GPU内存信息失败: {}',
+                
+                # 启动横幅和服务
+                'service_url_info': '服务地址: {}',
+                'browser_open_msg': '浏览器将自动打开...',
+                'ctrl_c_stop': '按 Ctrl+C 停止服务',
+                'cleaning_resources': '正在清理资源...',
+                'gpu_monitor_stopped_log': 'GPU 监控已停止',
+                'gpu_auto_monitor_stopped': 'GPU 自动内存监控已停止',
+                'webhook_close_failed_log': '关闭 Webhook 客户端失败: {}',
+                'resources_cleaned': '资源清理完成',
+                'thanks_using': '感谢使用 MLSharp!',
+                'service_start_failed_log': '服务启动失败: {}',
+                'browser_open_failed': '无法自动打开浏览器: {}',
+                
+                # ROCm 加速
+                'rocm_accel': '使用 ROCm 加速',
+                
+                # 计算能力
+                'compute_capability_simple': '计算能力: {}',
+                
+                # CPU 模式
+                'cpu_mode_simple': '使用 CPU 模式',
+                
+                # Webhook 关闭
+                'webhook_closed_log': 'Webhook 客户端已关闭',
+                
+                # 更多消息
+                'redis_stats_failed': 'Redis 缓存统计失败: {}',
+                'redis_conn_closed': 'Redis 连接已关闭',
+                'redis_conn_close_failed': '关闭 Redis 连接失败: {}',
+                'tuning_results_updated': '性能调优结果已更新到配置文件: {}',
+                'tuning_results_added': '性能调优结果已添加到配置文件: {}',
+                'tuning_results_save_failed': '保存性能调优结果失败: {}',
+                'testing_optimizations': '正在测试不同优化配置...',
+                'warmup_exception': '预热运行时出现异常: {}',
+                'creating_predictor_msg': '正在创建预测器...',
+                'loading_weights_msg': '正在加载模型权重...',
+                'loading_weights_to_predictor_msg': '正在加载权重到预测器...',
+                'model_loaded_success': '模型加载完成!',
+                'applying_gradient_checkpointing_msg': '正在应用梯度检查点...',
+                'sharp_import_error_msg': 'Sharp 模块导入失败: {}',
+                'sharp_import_reasons': '可能的原因:\n1. Sharp 库未安装\n2. 模型文件路径错误\n3. Python 环境配置不正确\n\n解决方案:\n- 检查 model_assets/ 文件夹是否存在\n- 重新安装依赖: pip install -r requirements.txt\n- 确保使用正确的 Python 环境',
+                'model_load_error_msg': '模型加载失败: {}',
+                'model_load_check': '请检查:\n1. 模型文件是否完整\n2. PyTorch 版本是否兼容\n3. 是否有足够的内存/显存\n4. Python 环境是否正确配置',
+                'grad_checkpoint_monodepth': '  已应用梯度检查点到 monodepth 模型',
+                'grad_checkpoint_decoder': '  已应用梯度检查点到 decoder',
+                'grad_checkpoint_failed_msg': '应用梯度检查点失败: {}',
+                'grad_checkpoint_fallback_msg': '  梯度检查点未启用，将使用正常推理模式',
+                'mixed_precision_fallback_msg': '混合精度推理失败,回退到 FP32: {}',
+                'temp_dir_delete_failed_msg': '删除临时目录失败: {}',
+                'clearing_cache': '正在清空缓存...',
+                'cache_cleared_success': '缓存已清空',
+                
+                # API 模型描述
+                'api_status_desc': '请求状态 (success/error)',
+                'api_url_desc': '生成的 PLY 文件下载地址',
+                'api_time_desc': '处理时间（秒）',
+                'api_task_id_desc': '任务 ID',
+                'api_health_status_desc': '服务状态 (healthy/unhealthy)',
+                'api_gpu_available_desc': 'GPU 是否可用',
+                'api_gpu_vendor_desc': 'GPU 厂商 (NVIDIA/AMD/Intel)',
+                'api_gpu_name_desc': 'GPU 型号名称',
+                'api_gpu_count_desc': 'GPU 数量',
+                'api_gpu_memory_desc': '当前 GPU 内存使用量（MB）',
+                'api_gpu_info_desc': 'GPU 信息',
+                'api_cache_enabled_desc': '缓存是否启用',
+                'api_cache_size_desc': '当前缓存条目数',
+                'api_cache_max_desc': '最大缓存条目数',
+                'api_cache_hits_desc': '缓存命中次数',
+                'api_cache_misses_desc': '缓存未命中次数',
+                'api_cache_rate_desc': '缓存命中率（百分比）',
+                'api_op_status_desc': '操作状态',
+                'api_op_message_desc': '操作消息',
+                'api_error_type_desc': '错误类型',
+                'api_error_message_desc': '错误消息',
+                'api_status_code_desc': 'HTTP 状态码',
+                'api_path_desc': '请求路径',
+                'api_timestamp_desc': '错误发生时间（ISO 8601 格式）',
+                'api_description': '基于 Apple SHaRP 模型的 3D 高斯泼溅生成工具',
+                'api_upload_desc': '上传的图片文件 (JPG格式)',
+                
+                # 更多API错误消息
+                'api_unsupported_file_type': '不支持的文件类型: {}, 扩展名: {}',
+                'api_unsupported_file_simple': '不支持的文件类型: {}',
+                'api_unknown_format': '无法识别的文件格式，魔数: {}',
+                'api_header_check_failed': '文件头检查失败: {}',
+                'api_path_traversal_detected': '路径遍历攻击检测: {}',
+                'api_invalid_path': '无效的路径',
+                'api_contact_support': '请联系技术支持',
+                'api_save_upload_failed': '[Task {}] 保存上传文件失败: {}',
+                'api_save_upload_msg': '保存上传文件失败: {}',
+                'api_check_format_support': '请检查文件格式是否正确或联系技术支持',
+                'api_load_image_failed_task': '[Task {}] 加载图像失败: {}',
+                'api_load_image_msg': '加载图像失败: {}',
+                'api_check_image_format': '请检查上传的图片格式是否支持(JPG/PNG等)',
+                'api_image_too_large_task': '[Task {}] 图片尺寸过大 ({}x{}),可能导致性能问题',
+                'api_redis_failed_task': '[Task {}] Redis缓存获取失败: {}, 将使用本地缓存',
+                'api_cache_ply_failed_task': '[Task {}] 缓存结果PLY保存失败: {}',
+                'api_cache_ply_msg': '缓存结果PLY保存失败: {}',
+                'api_check_disk_space': '请检查磁盘空间或联系技术支持',
+                
+                # CLI epilog
+                'cli_epilog': """
+启动模式说明:
+  auto     自动检测并选择最佳模式（默认）
+  gpu      强制使用 GPU 模式（自动检测厂商）
+  cpu      强制使用 CPU 模式
+  nvidia   强制使用 NVIDIA GPU 模式
+  amd      强制使用 AMD GPU 模式（ROCm）
+
+配置文件:
+  支持 YAML 和 JSON 格式
+  配置文件优先级低于命令行参数
+
+示例:
+  python app.py                    # 自动检测模式
+  python app.py --mode gpu         # 强制 GPU 模式
+  python app.py --config config.yaml  # 使用配置文件
+  python app.py --port 8080        # 使用 8080 端口
+        """,
             },
             'en': {
                 # Error messages
@@ -929,6 +1242,319 @@ Solutions:
                 
                 # New: Inference cache
                 'inference_cache_enabled': '[Cache] Inference cache: Enabled (max {} entries)',
+                
+                # Logger class log format labels
+                'log_error': 'Error',
+                'log_solution': 'Solution',
+                'log_detail_error': 'Detailed error info',
+                'log_exception': 'Exception',
+                'log_detail_exception': 'Detailed exception info',
+                'log_critical': 'Critical Error',
+                'log_emergency_solution': 'Emergency Solution',
+                'log_performance': 'Performance',
+                'log_gpu': 'GPU',
+                'log_cache': 'Cache',
+                
+                # GPU initialization related
+                'gpu_init_failed': 'Device initialization failed: {}',
+                'gpu_memory_management': '\nGPU Memory Management:',
+                'configure_optimizations': '\nConfiguring optimizations based on GPU capability:',
+                'cudnn_enable_failed': '  cuDNN Benchmark: Enable failed ({})',
+                'cudnn_not_applicable': '  cuDNN Benchmark: Not applicable (non-NVIDIA GPU)',
+                'tf32_enable_failed': '  TensorFloat32: Enable failed ({})',
+                'tf32_not_applicable': '  TensorFloat32: Not applicable (non-NVIDIA GPU)',
+                
+                # GPU memory management
+                'gpu_unavailable_skip_cache': 'GPU unavailable, skipping cache cleanup',
+                'gpu_unavailable_skip_gc': 'GPU unavailable, skipping garbage collection',
+                
+                # Command line argument help text
+                'arg_mode_help': 'Startup mode: auto(auto), gpu(GPU), cpu(CPU), nvidia(NVIDIA), amd(AMD)',
+                'arg_port_help': 'Web service port (default: 8000)',
+                'arg_host_help': 'Web service host address (default: 127.0.0.1)',
+                'arg_no_browser_help': 'Do not auto-open browser',
+                'arg_no_amp_help': 'Disable mixed precision inference (AMP)',
+                'arg_no_cudnn_help': 'Disable cuDNN Benchmark',
+                'arg_config_help': 'Config file path (supports YAML and JSON)',
+                'arg_input_size_help': 'Input image size (default: 1536 1536)',
+                'arg_gradient_help': 'Enable gradient checkpointing (reduces VRAM usage, slightly slower)',
+                'arg_segments_help': 'Gradient checkpoint segments (default: 3)',
+                'arg_cache_help': 'Enable inference cache (default: enabled)',
+                'arg_no_cache_help': 'Disable inference cache',
+                'arg_cache_size_help': 'Max cache entries (default: 100)',
+                'arg_clear_cache_help': 'Clear cache on startup',
+                'arg_auto_tune_help': 'Enable performance auto-tuning (test and select optimal config)',
+                'arg_redis_help': 'Redis connection URL (e.g., redis://localhost:6379/0)',
+                'arg_webhook_help': 'Enable Webhook notifications',
+                'arg_auto_gc_help': 'Enable GPU auto garbage collection (default: enabled)',
+                'arg_no_auto_gc_help': 'Disable GPU auto garbage collection',
+                'arg_gc_interval_help': 'GPU GC check interval in seconds (default: 30)',
+                'arg_gc_threshold_help': 'GPU VRAM threshold for auto cleanup in % (default: 85.0)',
+                'arg_smart_reclaim_help': 'Enable smart memory reclaim (default: enabled)',
+                'arg_no_smart_reclaim_help': 'Disable smart memory reclaim',
+                'arg_lang_help': 'Interface language (zh=Chinese, en=English)',
+                
+                # Config file related error messages
+                'config_format_unsupported': 'Unsupported config file format: {}',
+                'config_not_found': 'Config file not found: {}',
+                'config_path_unexpected': 'Config file not in expected directory: {}',
+                'config_load_failed': 'Failed to load config file: {}',
+                
+                # validate_input_size messages (using print)
+                'print_size_mismatch': '[WARNING] Input width and height not equal ({}x{}), model uses square input',
+                'print_adjusted': '[INFO] Adjusted to {}x{}',
+                'print_exceeds_max': '[WARNING] Input size {}x{} exceeds maximum supported size {}x{}',
+                'print_patch_error': '[WARNING] SPN encoder will have patch splitting errors with larger sizes',
+                'print_not_divisible': '[WARNING] Input size {}x{} not divisible by 64',
+                'print_still_exceeds': '[WARNING] Adjusted size {}x{} still exceeds maximum supported size',
+                
+                # progress_info default message
+                'progress_processing': 'Processing',
+                
+                # API response messages
+                'api_unsupported_file_type': 'Unsupported file type: {}',
+                'api_supported_formats': 'Please upload JPG, PNG, WebP or BMP format images',
+                'api_path_traversal': 'Invalid path',
+                'api_save_failed': 'Failed to save uploaded file: {}',
+                'api_check_format': 'Please check file format or contact support',
+                'api_load_image_failed': 'Failed to load image: {}',
+                'api_check_image_format': 'Please check uploaded image format (JPG/PNG supported)',
+                'api_image_too_large': 'Image size too large ({}x{}), may cause performance issues',
+                'api_redis_failed': 'Redis cache fetch failed: {}, using local cache',
+                'api_ply_save_failed': 'Failed to save cached PLY: {}',
+                'api_check_disk': 'Please check disk space or contact support',
+                'api_rename_failed': 'Failed to rename file: {}',
+                'api_vram_insufficient': 'Insufficient VRAM, please use smaller images',
+                'api_vram_solution': 'Suggested to use images smaller than 1024x1024, or close other VRAM-consuming programs',
+                'api_inference_failed': 'Inference process failed: {}',
+                'api_retry_or_small': 'Please try restarting or use smaller images',
+                'api_redis_cache_failed': 'Redis cache failed: {}',
+                'api_ply_save_failed2': 'PLY save failed: {}',
+                'api_processing_failed': 'Processing failed: {}',
+                'api_internal_error': 'Internal server error, please try again later',
+                'api_resource_not_found': 'Requested resource not found',
+                'api_validation_failed': 'Request parameter validation failed',
+                
+                # Startup banner
+                'banner_title': '3D Model Generator - Auto-detect GPU',
+                'banner_modes': 'Supported modes:',
+                'banner_nvidia': 'NVIDIA GPU (CUDA)',
+                'banner_amd': 'AMD GPU (ROCm)',
+                'banner_intel': 'Intel GPU (CPU fallback)',
+                'banner_cpu': 'CPU mode',
+                
+                # Performance tuning config names
+                'tune_baseline': 'Baseline',
+                'tune_baseline_desc': 'No optimizations',
+                'tune_amp_only': 'AMP only',
+                'tune_amp_only_desc': 'Enable mixed precision inference only',
+                'tune_cudnn_only': 'cuDNN Benchmark only',
+                'tune_cudnn_only_desc': 'Enable cuDNN auto-tuning only',
+                'tune_tf32_only': 'TF32 only',
+                'tune_tf32_only_desc': 'Enable TensorFloat32 only',
+                'tune_amp_cudnn': 'AMP + cuDNN',
+                'tune_amp_cudnn_desc': 'AMP and cuDNN auto-tuning',
+                'tune_amp_tf32': 'AMP + TF32',
+                'tune_amp_tf32_desc': 'AMP and TensorFloat32',
+                'tune_all': 'All optimizations',
+                'tune_all_desc': 'Enable all optimizations',
+                'tune_non_nvidia': 'Non-NVIDIA GPU, testing AMP optimization only',
+                'tune_skip_cudnn': 'GPU compute capability < 6.0, skipping cuDNN Benchmark',
+                'tune_skip_tf32': 'GPU does not support TF32, skipping TF32 test',
+                
+                # Others
+                'cli_description': 'MLSharp 3D Model Generator',
+                'model_import_failed': 'Sharp module import failed: {}',
+                'model_import_solution': 'Possible reasons:\n1. Sharp library not installed\n2. Model file path error\n3. Python environment misconfigured\n\nSolutions:\n- Check if model_assets/ folder exists\n- Reinstall dependencies: pip install -r requirements.txt\n- Ensure correct Python environment',
+                'model_weights_failed': 'Model loading failed: {}',
+                'model_weights_solution': 'Please check:\n1. Model file integrity\n2. PyTorch version compatibility\n3. Sufficient memory/VRAM\n4. Python environment properly configured',
+                'grad_checkpoint_failed': 'Failed to apply gradient checkpointing: {}',
+                'grad_checkpoint_fallback': 'Gradient checkpointing not enabled, using normal inference mode',
+                'mixed_precision_fallback': 'Mixed precision inference failed, falling back to FP32: {}',
+                'temp_dir_delete_failed': 'Failed to delete temp directory: {}',
+                'unsafe_unpickle': 'Unsafe unpickling: {}.{}',
+                'redis_data_untrusted': 'Redis data not trusted, skipping deserialization: {}',
+                'redis_deserialize_rejected': 'Redis cache data deserialization rejected (security restriction): {}',
+                'http_client_not_init': 'HTTP client not initialized, cannot send Webhook',
+                'webhook_send_exception': 'Webhook send exception: {} -> {} (error: {})',
+                
+                # GPU garbage collection
+                'gpu_gc_complete': 'GPU garbage collection complete - Device {}',
+                'gpu_gc_failed_msg': 'GPU garbage collection failed: {}',
+                'gpu_vram_high': 'GPU VRAM usage too high: {:.1f}%',
+                'smart_recovery': '  Performing smart memory recovery...',
+                'smart_recovery_failed': 'Smart memory recovery failed: {}',
+                'gpu_unavailable_monitor': 'GPU unavailable, skipping auto memory monitoring',
+                'monitor_exception': 'Memory monitoring exception: {}',
+                'gpu_monitor_stopped_msg': 'GPU auto memory monitoring stopped',
+                
+                # Cache management
+                'cache_hit_debug': 'Cache hit: hit rate {:.1f}% ({}/{})',
+                'cache_evict': 'Cache full, evicting oldest entry: {}',
+                'cache_added': 'Cache added: {}',
+                'cache_cleared_msg': 'Cache cleared',
+                
+                # Redis cache
+                'redis_not_installed_msg': 'Redis module not installed, Redis cache will be unavailable',
+                'redis_install_cmd_msg': 'Install command: pip install redis',
+                'redis_connection_failed_msg': 'Redis connection failed: {}',
+                'redis_unavailable_msg': 'Redis cache will be unavailable, using local cache instead',
+                'redis_data_untrusted_msg': 'Redis data not trusted, skipping deserialization: {}',
+                'unsafe_deserialize': 'Unsafe deserialization: {}.{}',
+                'redis_cache_hit': 'Redis cache hit: {}',
+                'redis_cache_miss': 'Redis cache miss: {}',
+                'redis_deserialize_rejected_msg': 'Redis cache data deserialization rejected (security restriction): {}',
+                'redis_get_failed': 'Redis cache get failed: {}',
+                'redis_cache_added': 'Redis cache added: {} (TTL: {}s)',
+                'redis_set_failed': 'Redis cache set failed: {}',
+                'redis_clear_failed': 'Redis cache clear failed: {}',
+                
+                # Webhook
+                'httpx_not_installed': 'httpx module not installed, Webhook functionality will be unavailable',
+                'httpx_install_cmd': 'Install command: pip install httpx',
+                'webhook_client_init_msg': 'Webhook client initialized',
+                'webhook_disabled_msg': 'Webhook not enabled, cannot register',
+                'http_client_not_init_msg': 'HTTP client not initialized, cannot send Webhook',
+                'webhook_send_failed_msg': 'Webhook send failed: {} -> {} (status code: {})',
+                'webhook_send_exception_msg': 'Webhook send exception: {} -> {} (error: {})',
+                'webhook_client_closed_msg': 'Webhook client closed',
+                
+                # Performance tuning
+                'test_config_failed': '  Test failed: {}',
+                'best_config_result': 'Best configuration: {}',
+                'all_tests_failed': 'All configuration tests failed, using default configuration',
+                'no_config_path': 'No config file path specified, cannot save tuning results',
+                'load_tuning_cache_failed': 'Failed to load performance tuning cache: {}',
+                'non_nvidia_amp_only': 'Non-NVIDIA GPU, testing AMP optimization only',
+                'skip_cudnn_low_compute': 'GPU compute capability < 6.0, skipping cuDNN Benchmark',
+                'skip_tf32_not_supported': 'GPU does not support TF32, skipping TF32 test',
+                
+                # API response
+                'internal_server_error': 'Internal server error, please try again later',
+                'resource_not_found': 'Requested resource not found',
+                'validation_error': 'Request parameter validation failed',
+                'cache_clear_msg': 'Cache cleared',
+                'get_gpu_mem_failed': 'Failed to get GPU memory info: {}',
+                
+                # Startup banner and service
+                'service_url_info': 'Service address: {}',
+                'browser_open_msg': 'Browser will auto-open...',
+                'ctrl_c_stop': 'Press Ctrl+C to stop service',
+                'cleaning_resources': 'Cleaning up resources...',
+                'gpu_monitor_stopped_log': 'GPU monitoring stopped',
+                'gpu_auto_monitor_stopped': 'GPU auto memory monitoring stopped',
+                'webhook_close_failed_log': 'Failed to close Webhook client: {}',
+                'resources_cleaned': 'Resource cleanup complete',
+                'thanks_using': 'Thank you for using MLSharp!',
+                'service_start_failed_log': 'Service startup failed: {}',
+                'browser_open_failed': 'Unable to auto-open browser: {}',
+                
+                # ROCm acceleration
+                'rocm_accel': 'Using ROCm acceleration',
+                
+                # Compute capability
+                'compute_capability_simple': 'Compute capability: {}',
+                
+                # CPU mode
+                'cpu_mode_simple': 'Using CPU mode',
+                
+                # Webhook closed
+                'webhook_closed_log': 'Webhook client closed',
+                
+                # More messages
+                'redis_stats_failed': 'Redis cache stats failed: {}',
+                'redis_conn_closed': 'Redis connection closed',
+                'redis_conn_close_failed': 'Failed to close Redis connection: {}',
+                'tuning_results_updated': 'Performance tuning results updated to config file: {}',
+                'tuning_results_added': 'Performance tuning results added to config file: {}',
+                'tuning_results_save_failed': 'Failed to save performance tuning results: {}',
+                'testing_optimizations': 'Testing different optimization configurations...',
+                'warmup_exception': 'Exception during warmup run: {}',
+                'creating_predictor_msg': 'Creating predictor...',
+                'loading_weights_msg': 'Loading model weights...',
+                'loading_weights_to_predictor_msg': 'Loading weights to predictor...',
+                'model_loaded_success': 'Model loaded successfully!',
+                'applying_gradient_checkpointing_msg': 'Applying gradient checkpointing...',
+                'sharp_import_error_msg': 'Sharp module import failed: {}',
+                'sharp_import_reasons': 'Possible reasons:\n1. Sharp library not installed\n2. Model file path error\n3. Python environment misconfigured\n\nSolutions:\n- Check if model_assets/ folder exists\n- Reinstall dependencies: pip install -r requirements.txt\n- Ensure correct Python environment',
+                'model_load_error_msg': 'Model loading failed: {}',
+                'model_load_check': 'Please check:\n1. Model file integrity\n2. PyTorch version compatibility\n3. Sufficient memory/VRAM\n4. Python environment properly configured',
+                'grad_checkpoint_monodepth': '  Gradient checkpointing applied to monodepth model',
+                'grad_checkpoint_decoder': '  Gradient checkpointing applied to decoder',
+                'grad_checkpoint_failed_msg': 'Failed to apply gradient checkpointing: {}',
+                'grad_checkpoint_fallback_msg': '  Gradient checkpointing not enabled, using normal inference mode',
+                'mixed_precision_fallback_msg': 'Mixed precision inference failed, falling back to FP32: {}',
+                'temp_dir_delete_failed_msg': 'Failed to delete temp directory: {}',
+                'clearing_cache': 'Clearing cache...',
+                'cache_cleared_success': 'Cache cleared',
+                
+                # API model descriptions
+                'api_status_desc': 'Request status (success/error)',
+                'api_url_desc': 'Generated PLY file download URL',
+                'api_time_desc': 'Processing time (seconds)',
+                'api_task_id_desc': 'Task ID',
+                'api_health_status_desc': 'Service status (healthy/unhealthy)',
+                'api_gpu_available_desc': 'GPU available',
+                'api_gpu_vendor_desc': 'GPU vendor (NVIDIA/AMD/Intel)',
+                'api_gpu_name_desc': 'GPU model name',
+                'api_gpu_count_desc': 'GPU count',
+                'api_gpu_memory_desc': 'Current GPU memory usage (MB)',
+                'api_gpu_info_desc': 'GPU info',
+                'api_cache_enabled_desc': 'Cache enabled',
+                'api_cache_size_desc': 'Current cache entries',
+                'api_cache_max_desc': 'Max cache entries',
+                'api_cache_hits_desc': 'Cache hits',
+                'api_cache_misses_desc': 'Cache misses',
+                'api_cache_rate_desc': 'Cache hit rate (percentage)',
+                'api_op_status_desc': 'Operation status',
+                'api_op_message_desc': 'Operation message',
+                'api_error_type_desc': 'Error type',
+                'api_error_message_desc': 'Error message',
+                'api_status_code_desc': 'HTTP status code',
+                'api_path_desc': 'Request path',
+                'api_timestamp_desc': 'Error timestamp (ISO 8601 format)',
+                'api_description': '3D Gaussian Splatting Generator based on Apple SHaRP Model',
+                'api_upload_desc': 'Uploaded image file (JPG format)',
+                
+                # More API error messages
+                'api_unsupported_file_type': 'Unsupported file type: {}, extension: {}',
+                'api_unsupported_file_simple': 'Unsupported file type: {}',
+                'api_unknown_format': 'Unrecognized file format, magic number: {}',
+                'api_header_check_failed': 'File header check failed: {}',
+                'api_path_traversal_detected': 'Path traversal attack detected: {}',
+                'api_invalid_path': 'Invalid path',
+                'api_contact_support': 'Please contact technical support',
+                'api_save_upload_failed': '[Task {}] Failed to save uploaded file: {}',
+                'api_save_upload_msg': 'Failed to save uploaded file: {}',
+                'api_check_format_support': 'Please check file format or contact support',
+                'api_load_image_failed_task': '[Task {}] Failed to load image: {}',
+                'api_load_image_msg': 'Failed to load image: {}',
+                'api_check_image_format': 'Please check if uploaded image format is supported (JPG/PNG etc)',
+                'api_image_too_large_task': '[Task {}] Image size too large ({}x{}), may cause performance issues',
+                'api_redis_failed_task': '[Task {}] Redis cache fetch failed: {}, using local cache',
+                'api_cache_ply_failed_task': '[Task {}] Failed to save cached PLY: {}',
+                'api_cache_ply_msg': 'Failed to save cached PLY: {}',
+                'api_check_disk_space': 'Please check disk space or contact support',
+                
+                # CLI epilog
+                'cli_epilog': """
+Startup Mode Description:
+  auto     Auto-detect and select best mode (default)
+  gpu      Force GPU mode (auto-detect vendor)
+  cpu      Force CPU mode
+  nvidia   Force NVIDIA GPU mode
+  amd      Force AMD GPU mode (ROCm)
+
+Config File:
+  Supports YAML and JSON formats
+  Config file has lower priority than command-line arguments
+
+Examples:
+  python app.py                    # Auto-detect mode
+  python app.py --mode gpu         # Force GPU mode
+  python app.py --config config.yaml  # Use config file
+  python app.py --port 8080        # Use port 8080
+        """,
             }
         }
     
@@ -959,7 +1585,16 @@ Solutions:
         # 获取当前语言的翻译，如果不存在则使用默认语言
         translation = self.translations.get(self.current_lang, {}).get(key)
         if translation is None:
-            translation = self.translations.get(self.default_lang, {}).get(key, key)
+            translation = self.translations.get(self.default_lang, {}).get(key)
+        
+        # 如果两种语言都找不到翻译键，输出警告并返回键名
+        if translation is None:
+            # 延迟导入避免循环依赖，使用print输出到stdout避免影响错误检测
+            try:
+                print(f"[i18n] WARNING: Translation key not found: '{key}'")
+            except Exception:
+                pass  # 忽略输出错误，确保不影响程序运行
+            translation = key
         
         # 如果提供了格式化参数，则进行格式化
         if args or kwargs:

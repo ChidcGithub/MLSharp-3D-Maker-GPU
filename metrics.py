@@ -118,17 +118,17 @@ class MetricsManager:
         
         # 初始化 GPU 监控线程
         self._monitoring_thread: Optional[threading.Thread] = None
-        self._monitoring_active = False
-        
+        self._monitoring_active = threading.Event()  # 使用 Event 替代布尔标志，线程安全
+
         if self.enable_gpu:
             self._start_gpu_monitoring()
-    
+
     def _start_gpu_monitoring(self):
         """启动 GPU 监控线程"""
         if not torch.cuda.is_available():
             return
-        
-        self._monitoring_active = True
+
+        self._monitoring_active.set()  # 设置事件标志
         self._monitoring_thread = threading.Thread(
             target=self._gpu_monitoring_loop,
             daemon=True
@@ -142,23 +142,23 @@ class MetricsManager:
         try:
             pynvml.nvmlInit()
             device_count = pynvml.nvmlDeviceGetCount()
-            
-            while self._monitoring_active:
+
+            while self._monitoring_active.is_set():  # 使用 is_set() 检查事件状态
                 for i in range(device_count):
                     handle = pynvml.nvmlDeviceGetHandleByIndex(i)
-                    
+
                     # 获取 GPU 内存使用量
                     mem_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
                     self.gpu_memory_used_mb.labels(device_id=str(i)).set(
                         mem_info.used / 1024 / 1024
                     )
-                    
+
                     # 获取 GPU 利用率
                     utilization = pynvml.nvmlDeviceGetUtilizationRates(handle)
                     self.gpu_utilization_percent.labels(device_id=str(i)).set(
                         utilization.gpu
                     )
-                
+
                 time.sleep(5)  # 每 5 秒更新一次
                 
         except Exception as e:
@@ -168,11 +168,11 @@ class MetricsManager:
                 logger.warning(f"GPU monitoring failed: {e}")
             except:
                 print(f"[WARNING] GPU monitoring failed: {e}")
-            self._monitoring_active = False
-    
+            self._monitoring_active.clear()  # 清除事件标志
+
     def stop_monitoring(self):
         """停止监控"""
-        self._monitoring_active = False
+        self._monitoring_active.clear()  # 清除事件标志
         if self._monitoring_thread:
             self._monitoring_thread.join(timeout=2)
     

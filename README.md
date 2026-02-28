@@ -104,7 +104,35 @@ MLSharp-3D-Maker-GPU-by-Chidc/
 <details>
 <summary><b>点击展开查看最新更新详情</b></summary>
 
-### 最新更新（2026-02-20）
+### 最新更新（2026-02-28）
+
+**优化代码，修复错误，并完成多语言模块 2.28.1500 (2026-02-28)**
+- **代码健壮性大幅提升**
+  - 修复 CLIArgs 缺少 no_cache 字段问题
+  - 修复 Logger 方法重复定义问题
+  - 修复 Pydantic v2 废弃参数问题 (min_items → min_length)
+  - 修复 metrics.py 线程安全问题 (使用 threading.Event)
+  - 修复 app.py GPUManager 线程安全问题
+  - 修复 traceback.format_exc() 非异常上下文调用问题
+- **安全性增强**
+  - 添加 RestrictedUnpickler 防止 pickle 反序列化攻击
+  - 添加文件上传类型验证（魔数检查）
+  - 添加路径遍历攻击防护
+  - 添加请求大小限制
+  - 添加敏感信息泄露防护
+  - 添加配置文件路径验证
+- **稳定性改进**
+  - 修复 gpu_utils.py 静默异常问题
+  - 修复文件句柄泄漏问题
+  - 修复监控中间件竞态条件
+  - 添加 logger.py 文件句柄关闭机制
+- **多语言支持完善**
+  - 修复所有硬编码中文字符串
+  - 完整的中英文翻译支持
+  - 添加翻译键缺失警告功能
+  - CLI 参数帮助信息国际化
+  - API 错误消息国际化
+  - 启动横幅和日志消息国际化
 
 **日志与错误处理增强 02.20.1425**
 - **添加多语言支持** - 添加英文版翻译及应用多语言支持
@@ -125,41 +153,6 @@ MLSharp-3D-Maker-GPU-by-Chidc/
 - **启动脚本修复** - 移除 Start.ps1 中的硬编码 IP 地址，提高可移植性
 - **资源管理优化** - 改进临时文件和资源的清理机制，防止资源泄漏
 - **测试覆盖** - 增加对稳定性的测试用例，确保关键功能的稳定性
-
-**代码健康检查与修复 02.05.1914**
-- **代码质量提升** - 修复未使用的 ProcessPoolExecutor，优化资源使用
-- **Pydantic v2 更新** - 更新到 Pydantic v2 语法，使用 @field_validator 替代 @validator
-- **资源管理优化** - 添加 cleanup() 方法，确保 GPU 监控线程和 Webhook 客户端正确关闭
-- **Redis 连接管理** - 添加 __del__ 方法，自动关闭 Redis 连接
-- **测试文件添加** - 新增 test_app.py，包含核心功能测试
-- **测试脚本更新** - 更新 run_tests.bat 和 run_tests.ps1，支持 Windows 和 PowerShell
-- **测试覆盖** - 模块导入、配置验证、GPU 检测、监控指标等核心功能
-- **测试结果** - 所有测试通过 (4/4)
-- **新格式** - 采用 [Month].[Day].[HHMM] 格式（例如：02.05.1900）
-- **说明** - 月份.日期.时分（24小时制）
-
-**Snapdragon GPU 适配 02.03.1851**
-- **主分支移除 Adreno GPU 支持** - 移除 Snapdragon/Adreno 系列 GPU 支持
-
-**GPU 内存自动回收 02.03.1851**
-- **内存信息查询** - 实时获取 GPU 显存使用情况（总量、已用、可用、使用率）
-- **缓存清理** - 自动清理 PyTorch 预留但未使用的显存
-- **强制垃圾回收** - 完整的垃圾回收流程（清理缓存 → 同步 GPU → Python GC → 再次清理）
-- **智能内存回收** - 当显存使用率超过阈值时自动清理（默认 85%）
-- **自动内存监控** - 后台线程定期检查并自动清理显存（默认每 30 秒）
-- **命令行参数** - 支持 `--enable-auto-gc`、`--auto-gc-interval`、`--auto-gc-threshold` 等参数
-- **配置文件支持** - 在 config.yaml 中配置内存回收策略
-- **性能优化** - 防止显存泄漏，提高系统稳定性
-- **日志记录** - 详细的内存清理日志，便于调试
-
-**Snapdragon GPU 适配 01.31.1931**
-- **Adreno GPU 检测** - 自动检测 Snapdragon/Adreno 系列 GPU
-- **Qualcomm 模式** - 新增 `--mode qualcomm` 启动模式
-- **ONNX Runtime 支持** - 添加 ONNX Runtime + DirectML 加速方案
-- **智能回退** - 检测到 Snapdragon GPU 时自动使用 CPU 模式
-- **平台支持** - Windows/Android 平台识别
-- **文档更新** - 添加 Snapdragon GPU 支持说明和限制
-
 
 </details>
 
@@ -1992,6 +1985,40 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 <details>
 <summary><b>点击展开查看版本历史</b></summary>
 
+**代码健康检查与修复 02.05.1914**
+- **代码质量提升** - 修复未使用的 ProcessPoolExecutor，优化资源使用
+- **Pydantic v2 更新** - 更新到 Pydantic v2 语法，使用 @field_validator 替代 @validator
+- **资源管理优化** - 添加 cleanup() 方法，确保 GPU 监控线程和 Webhook 客户端正确关闭
+- **Redis 连接管理** - 添加 __del__ 方法，自动关闭 Redis 连接
+- **测试文件添加** - 新增 test_app.py，包含核心功能测试
+- **测试脚本更新** - 更新 run_tests.bat 和 run_tests.ps1，支持 Windows 和 PowerShell
+- **测试覆盖** - 模块导入、配置验证、GPU 检测、监控指标等核心功能
+- **测试结果** - 所有测试通过 (4/4)
+- **新格式** - 采用 [Month].[Day].[HHMM] 格式（例如：02.05.1900）
+- **说明** - 月份.日期.时分（24小时制）
+
+**Snapdragon GPU 适配 02.03.1851**
+- **主分支移除 Adreno GPU 支持** - 移除 Snapdragon/Adreno 系列 GPU 支持
+
+**GPU 内存自动回收 02.03.1851**
+- **内存信息查询** - 实时获取 GPU 显存使用情况（总量、已用、可用、使用率）
+- **缓存清理** - 自动清理 PyTorch 预留但未使用的显存
+- **强制垃圾回收** - 完整的垃圾回收流程（清理缓存 → 同步 GPU → Python GC → 再次清理）
+- **智能内存回收** - 当显存使用率超过阈值时自动清理（默认 85%）
+- **自动内存监控** - 后台线程定期检查并自动清理显存（默认每 30 秒）
+- **命令行参数** - 支持 `--enable-auto-gc`、`--auto-gc-interval`、`--auto-gc-threshold` 等参数
+- **配置文件支持** - 在 config.yaml 中配置内存回收策略
+- **性能优化** - 防止显存泄漏，提高系统稳定性
+- **日志记录** - 详细的内存清理日志，便于调试
+
+**Snapdragon GPU 适配 01.31.1931**
+- **Adreno GPU 检测** - 自动检测 Snapdragon/Adreno 系列 GPU
+- **Qualcomm 模式** - 新增 `--mode qualcomm` 启动模式
+- **ONNX Runtime 支持** - 添加 ONNX Runtime + DirectML 加速方案
+- **智能回退** - 检测到 Snapdragon GPU 时自动使用 CPU 模式
+- **平台支持** - Windows/Android 平台识别
+- **文档更新** - 添加 Snapdragon GPU 支持说明和限制
+
 ### 1.31.1310 (2026-01-31)
 - Redis 分布式缓存支持
 - Webhook 异步通知功能
@@ -2153,7 +2180,7 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 ### 版本号命名规则
 
 本项目采用 **[Month].[Day].[HHMM]** 格式的版本号命名规则：
-README.md Version Code **02.20.1428**
+README.md Version Code **02.28.1500**
 
 **如果这个项目对你有帮助，请给个 ⭐️ Star！**
 

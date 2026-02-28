@@ -89,8 +89,8 @@ class ModelConfigModel(BaseModel):
 
 class InferenceConfigModel(BaseModel):
     """推理配置模型"""
-    
-    input_size: List[int] = Field(default=[1536, 1536], min_items=2, max_items=2)
+
+    input_size: List[int] = Field(default=[1536, 1536], min_length=2, max_length=2)
     
     @field_validator('input_size')
     @classmethod

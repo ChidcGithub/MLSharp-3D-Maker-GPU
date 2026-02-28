@@ -95,6 +95,7 @@ class CLIArgs:
     gradient_checkpointing: bool = False
     checkpoint_segments: int = 3
     enable_cache: bool = True
+    no_cache: bool = False  # 禁用缓存
     cache_size: int = 100
     clear_cache: bool = False
     enable_auto_tune: bool = False
@@ -114,30 +115,60 @@ class CLIArgs:
 def load_config_file(config_path: str) -> Dict[str, Any]:
     """
     从配置文件加载配置
-    
+
     支持 YAML 和 JSON 格式
-    
+
     Args:
         config_path: 配置文件路径
-        
+
     Returns:
         配置字典
+
+    Raises:
+        FileNotFoundError: 配置文件不存在
+        ValueError: 配置文件路径不安全
     """
-    if not os.path.exists(config_path):
-        raise FileNotFoundError(f"配置文件不存在: {config_path}")
-    
-    file_ext = os.path.splitext(config_path)[1].lower()
-    
+    # 路径安全验证
+    config_path_real = os.path.realpath(config_path)
+
+    # 检查文件扩展名是否合法
+    file_ext = os.path.splitext(config_path_real)[1].lower()
+    if file_ext not in ['.yaml', '.yml', '.json']:
+        raise ValueError(i18n.t('config_format_unsupported').format(file_ext))
+
+    # 检查文件是否存在
+    if not os.path.exists(config_path_real):
+        raise FileNotFoundError(i18n.t('config_not_found').format(config_path))
+
+    # 安全检查：确保配置文件路径在合理范围内
+    # 允许当前工作目录、用户主目录、应用目录等
+    cwd_real = os.path.realpath(os.getcwd())
+    allowed_paths = [cwd_real]
+
+    # 添加用户主目录（如果有）
+    home_dir = os.path.expanduser('~')
+    if home_dir and os.path.exists(home_dir):
+        allowed_paths.append(os.path.realpath(home_dir))
+
+    # 添加常见的配置目录
+    for allowed in allowed_paths:
+        if config_path_real.startswith(allowed):
+            break
+    else:
+        # 如果不在允许的路径内，发出警告但仍允许加载（因为用户可能有意指定外部配置）
+        import warnings
+        warnings.warn(i18n.t('config_path_unexpected').format(config_path_real))
+
     try:
-        with open(config_path, 'r', encoding='utf-8') as f:
+        with open(config_path_real, 'r', encoding='utf-8') as f:
             if file_ext in ['.yaml', '.yml']:
                 return yaml.safe_load(f)
             elif file_ext == '.json':
                 return json.load(f)
             else:
-                raise ValueError(f"不支持的配置文件格式: {file_ext}")
+                raise ValueError(i18n.t('config_format_unsupported').format(file_ext))
     except Exception as e:
-        raise RuntimeError(f"加载配置文件失败: {e}")
+        raise RuntimeError(i18n.t('config_load_failed').format(e))
 
 
 def validate_input_size(width: int, height: int) -> Tuple[int, int]:
@@ -158,31 +189,31 @@ def validate_input_size(width: int, height: int) -> Tuple[int, int]:
     """
     # 检查宽高是否相等
     if width != height:
-        print(f"[WARNING] 输入尺寸宽度和高度不相等 ({width}x{height})，模型使用正方形输入")
+        print(i18n.t('print_size_mismatch').format(width, height))
         size = max(width, height)
         width = height = size
-        print(f"[INFO] 已调整为 {width}x{height}")
+        print(i18n.t('print_adjusted').format(width, height))
     
     # 限制最大尺寸为 1536（SPN 编码器在更大尺寸下会出现补丁分割问题）
     max_size = 1536
     if width > max_size or height > max_size:
-        print(f"[WARNING] 输入尺寸 {width}x{height} 超过最大支持尺寸 {max_size}x{max_size}")
-        print(f"[WARNING] SPN 编码器在更大尺寸下会出现补丁分割错误")
-        print(f"[INFO] 已调整为 {max_size}x{max_size}")
+        print(i18n.t('print_exceeds_max').format(width, height, max_size, max_size))
+        print(i18n.t('print_patch_error'))
+        print(i18n.t('print_adjusted').format(max_size, max_size))
         width = height = max_size
     
     # 检查是否能被 64 整除
     if width % 64 != 0 or height % 64 != 0:
-        print(f"[WARNING] 输入尺寸 {width}x{height} 不能被 64 整除")
+        print(i18n.t('print_not_divisible').format(width, height))
         # 向上取整到最近的 64 倍数
         width = ((width + 63) // 64) * 64
         height = ((height + 63) // 64) * 64
-        print(f"[INFO] 已调整为 {width}x{height}")
+        print(i18n.t('print_adjusted').format(width, height))
     
     # 再次检查调整后的尺寸是否超过最大值
     if width > max_size or height > max_size:
-        print(f"[WARNING] 调整后的尺寸 {width}x{height} 仍然超过最大支持尺寸")
-        print(f"[INFO] 已调整为 {max_size}x{max_size}")
+        print(i18n.t('print_still_exceeds').format(width, height))
+        print(i18n.t('print_adjusted').format(max_size, max_size))
         width = height = max_size
     
     return width, height
@@ -357,94 +388,125 @@ class Logger:
         logger.opt(colors=True).info(f"<yellow>{border * 20}</yellow> <cyan>{icon} {title}</cyan> <yellow>{border * 20}</yellow>")
     
     @staticmethod
-    def progress_info(current: int, total: int, message: str = "处理中"):
+    def progress_info(current: int, total: int, message: str = None):
         """显示进度信息"""
+        if message is None:
+            message = i18n.t('progress_processing')
         percentage = (current / total) * 100 if total > 0 else 0
         bar_length = 20
         filled_length = int(bar_length * current // total) if total > 0 else 0
         bar = '█' * filled_length + '-' * (bar_length - filled_length)
         logger.info(f"{message}: |{bar}| {percentage:.1f}% ({current}/{total})")
-    
+
     @staticmethod
-    def error(error_msg: str, solution: Optional[str] = None):
-        """打印错误信息和解决方案"""
-        logger.opt(colors=True).error(f"<red>❌ 错误:</red> {error_msg}")
+    def error(error_msg: str, solution: Optional[str] = None, exc_info: Optional[Exception] = None):
+        """打印错误信息和解决方案
+
+        Args:
+            error_msg: 错误消息
+            solution: 可选的解决方案提示
+            exc_info: 可选的异常对象，如果提供则打印堆栈信息
+        """
+        logger.opt(colors=True).error(f"<red>❌ {i18n.t('log_error')}:</red> {error_msg}")
         if solution:
-            logger.opt(colors=True).info(f"<green>💡 解决方案:</green> {solution}")
-        logger.opt(colors=True).debug(f"<magenta>📋 详细错误信息:</magenta>\n{traceback.format_exc()}")
-    
+            logger.opt(colors=True).info(f"<green>💡 {i18n.t('log_solution')}:</green> {solution}")
+        # 只在有活跃异常或显式传入异常时打印堆栈
+        if exc_info is not None:
+            logger.opt(colors=True).debug(f"<magenta>📋 {i18n.t('log_detail_error')}:</magenta>\n{traceback.format_exception(type(exc_info), exc_info, exc_info.__traceback__)}")
+        elif sys.exc_info()[0] is not None:
+            logger.opt(colors=True).debug(f"<magenta>📋 {i18n.t('log_detail_error')}:</magenta>\n{traceback.format_exc()}")
+
     @staticmethod
     def success(msg: str):
         """打印成功信息"""
         logger.opt(colors=True).success(f"<green>✓</green> {msg}")
-    
+
     @staticmethod
     def warning(msg: str):
         """打印警告信息"""
         logger.opt(colors=True).warning(f"<yellow>⚠</yellow> {msg}")
-    
+
     @staticmethod
     def info(msg: str):
         """打印信息"""
-        logger.opt(colors=True).info(f"<blue>ℹ</blue> {msg}")
-    
+        logger.opt(colors=True).info(f"{msg}")
+
     @staticmethod
     def debug(msg: str):
         """打印调试信息"""
         logger.opt(colors=True).debug(f"<cyan>🔍</cyan> {msg}")
-    
+
     @staticmethod
-    def exception(msg: str):
-        """打印异常信息"""
-        logger.opt(colors=True).error(f"<red>💥 异常:</red> {msg}")
-        logger.opt(colors=True).debug(f"<magenta>📋 详细异常信息:</magenta>\n{traceback.format_exc()}")
-    
+    def exception(msg: str, exc_info: Optional[Exception] = None):
+        """打印异常信息
+
+        Args:
+            msg: 异常消息
+            exc_info: 可选的异常对象
+        """
+        logger.opt(colors=True).error(f"<red>💥 {i18n.t('log_exception')}:</red> {msg}")
+        # 只在有活跃异常或显式传入异常时打印堆栈
+        if exc_info is not None:
+            logger.opt(colors=True).debug(f"<magenta>📋 {i18n.t('log_detail_exception')}:</magenta>\n{traceback.format_exception(type(exc_info), exc_info, exc_info.__traceback__)}")
+        elif sys.exc_info()[0] is not None:
+            logger.opt(colors=True).debug(f"<magenta>📋 {i18n.t('log_detail_exception')}:</magenta>\n{traceback.format_exc()}")
+
     @staticmethod
-    def critical(msg: str, solution: Optional[str] = None):
-        """打印严重错误信息"""
-        logger.opt(colors=True).critical(f"<red>🔥 严重错误:</red> {msg}")
+    def critical(msg: str, solution: Optional[str] = None, exc_info: Optional[Exception] = None):
+        """打印严重错误信息
+
+        Args:
+            msg: 严重错误消息
+            solution: 可选的紧急解决方案
+            exc_info: 可选的异常对象
+        """
+        logger.opt(colors=True).critical(f"<red>🔥 {i18n.t('log_critical')}:</red> {msg}")
         if solution:
-            logger.opt(colors=True).info(f"<green>🚨 紧急解决方案:</green> {solution}")
-        logger.opt(colors=True).debug(f"<magenta>📋 详细错误信息:</magenta>\n{traceback.format_exc()}")
+            logger.opt(colors=True).info(f"<green>🚨 {i18n.t('log_emergency_solution')}:</green> {solution}")
+        # 只在有活跃异常或显式传入异常时打印堆栈
+        if exc_info is not None:
+            logger.opt(colors=True).debug(f"<magenta>📋 {i18n.t('log_detail_error')}:</magenta>\n{traceback.format_exception(type(exc_info), exc_info, exc_info.__traceback__)}")
+        elif sys.exc_info()[0] is not None:
+            logger.opt(colors=True).debug(f"<magenta>📋 {i18n.t('log_detail_error')}:</magenta>\n{traceback.format_exc()}")
     
     @staticmethod
     def performance(msg: str):
         """打印性能相关信息"""
-        logger.opt(colors=True).info(f"<blue>⏱️ 性能:</blue> {msg}")
+        logger.opt(colors=True).info(f"<blue>⏱️ {i18n.t('log_performance')}:</blue> {msg}")
     
     @staticmethod
     def gpu_info(msg: str):
         """打印GPU相关信息"""
-        logger.opt(colors=True).info(f"<cyan>🎮 GPU:</cyan> {msg}")
+        logger.opt(colors=True).info(f"<cyan>🎮 {i18n.t('log_gpu')}:</cyan> {msg}")
     
     @staticmethod
     def cache_info(msg: str):
         """打印缓存相关信息"""
-        logger.opt(colors=True).info(f"<purple>📦 缓存:</purple> {msg}")
-    
+        logger.opt(colors=True).info(f"<purple>📦 {i18n.t('log_cache')}:</purple> {msg}")
+
     @staticmethod
-    def success(msg: str):
-        """打印成功信息"""
+    def plain_success(msg: str):
+        """打印不带样式的成功信息（用于特殊场景）"""
         logger.success(msg)
-    
+
     @staticmethod
-    def warning(msg: str):
-        """打印警告信息"""
+    def plain_warning(msg: str):
+        """打印不带样式的警告信息（用于特殊场景）"""
         logger.warning(msg)
-    
+
     @staticmethod
-    def info(msg: str):
-        """打印信息"""
+    def plain_info(msg: str):
+        """打印不带样式的信息（用于特殊场景）"""
         logger.info(msg)
-    
+
     @staticmethod
-    def debug(msg: str):
-        """打印调试信息"""
+    def plain_debug(msg: str):
+        """打印不带样式的调试信息（用于特殊场景）"""
         logger.debug(msg)
-    
+
     @staticmethod
-    def exception(msg: str):
-        """打印异常信息"""
+    def plain_exception(msg: str):
+        """打印不带样式的异常信息（用于特殊场景）"""
         logger.exception(msg)
 
 
@@ -455,10 +517,22 @@ def parse_command_args() -> Tuple[CLIArgs, Optional[Dict[str, Any]]]:
     Returns:
         (CLIArgs, 配置文件字典或None)
     """
+    # 先解析语言参数，以便帮助信息可以使用正确的语言
+    import sys
+    lang = 'zh'  # 默认语言
+    for i, arg in enumerate(sys.argv):
+        if arg in ('--lang', '--language'):
+            if i + 1 < len(sys.argv) and sys.argv[i + 1] in ('zh', 'en'):
+                lang = sys.argv[i + 1]
+            break
+    
+    # 设置语言
+    i18n.set_language(lang)
+    
     parser = argparse.ArgumentParser(
-        description='MLSharp 3D模型生成工具',
+        description=i18n.t('cli_description'),
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
+        epilog=i18n.t('cli_epilog') if hasattr(i18n, 'translations') and 'cli_epilog' in i18n.translations.get(lang, {}) else """
 启动模式说明:
   auto     自动检测并选择最佳模式（默认）
   gpu      强制使用 GPU 模式（自动检测厂商）
@@ -480,67 +554,67 @@ def parse_command_args() -> Tuple[CLIArgs, Optional[Dict[str, Any]]]:
     
     parser.add_argument('--mode', '-m', type=str, default='auto',
                         choices=['auto', 'gpu', 'cpu', 'nvidia', 'amd'],
-                        help='启动模式：auto(自动), gpu(GPU), cpu(CPU), nvidia(NVIDIA), amd(AMD)')
+                        help=i18n.t('arg_mode_help'))
     parser.add_argument('--port', '-p', type=int, default=8000,
-                        help='Web 服务端口（默认：8000）')
+                        help=i18n.t('arg_port_help'))
     parser.add_argument('--host', type=str, default='127.0.0.1',
-                        help='Web 服务主机地址（默认：127.0.0.1）')
+                        help=i18n.t('arg_host_help'))
     parser.add_argument('--no-browser', action='store_true',
-                        help='不自动打开浏览器')
+                        help=i18n.t('arg_no_browser_help'))
     parser.add_argument('--no-amp', action='store_true',
-                        help='禁用混合精度推理（AMP）')
+                        help=i18n.t('arg_no_amp_help'))
     parser.add_argument('--no-cudnn-benchmark', action='store_true',
-                        help='禁用 cuDNN Benchmark')
+                        help=i18n.t('arg_no_cudnn_help'))
     parser.add_argument('--config', '-c', type=str, default=None,
-                        help='配置文件路径（支持 YAML 和 JSON）')
+                        help=i18n.t('arg_config_help'))
     parser.add_argument('--input-size', type=int, nargs=2, default=[1536, 1536],
                         metavar=('WIDTH', 'HEIGHT'),
-                        help='输入图像尺寸（默认：1536 1536）')
+                        help=i18n.t('arg_input_size_help'))
     parser.add_argument('--gradient-checkpointing', action='store_true',
-                        help='启用梯度检查点（减少显存占用，但会略微降低推理速度）')
+                        help=i18n.t('arg_gradient_help'))
     parser.add_argument('--checkpoint-segments', type=int, default=3,
-                        help='梯度检查点分段数 (默认: 3)')
+                        help=i18n.t('arg_segments_help'))
     parser.add_argument('--enable-cache', action='store_true', default=True,
-                        help='启用推理缓存（默认：启用）')
+                        help=i18n.t('arg_cache_help'))
     parser.add_argument('--no-cache', action='store_true',
-                        help='禁用推理缓存')
+                        help=i18n.t('arg_no_cache_help'))
     parser.add_argument('--cache-size', type=int, default=100,
-                        help='缓存最大条目数（默认：100）')
+                        help=i18n.t('arg_cache_size_help'))
     parser.add_argument('--clear-cache', action='store_true',
-                        help='启动时清空缓存')
+                        help=i18n.t('arg_clear_cache_help'))
     parser.add_argument('--enable-auto-tune', action='store_true',
-                        help='启用性能自动调优（启动时自动测试并选择最优配置）')
+                        help=i18n.t('arg_auto_tune_help'))
     parser.add_argument('--redis-url', type=str, default=None,
-                        help='Redis 连接 URL（例如：redis://localhost:6379/0）')
+                        help=i18n.t('arg_redis_help'))
     parser.add_argument('--enable-webhook', action='store_true',
-                        help='启用 Webhook 通知')
+                        help=i18n.t('arg_webhook_help'))
     
     # GPU 内存回收参数
     parser.add_argument('--enable-auto-gc', action='store_true', default=True,
-                        help='启用 GPU 自动垃圾回收（默认：启用）')
+                        help=i18n.t('arg_auto_gc_help'))
     parser.add_argument('--no-auto-gc', action='store_true',
-                        help='禁用 GPU 自动垃圾回收')
+                        help=i18n.t('arg_no_auto_gc_help'))
     parser.add_argument('--auto-gc-interval', type=int, default=30,
-                        help='GPU 自动垃圾回收检查间隔（秒，默认：30）')
+                        help=i18n.t('arg_gc_interval_help'))
     parser.add_argument('--auto-gc-threshold', type=float, default=85.0,
-                        help='GPU 显存使用率阈值，超过时自动清理（百分比，默认：85.0）')
+                        help=i18n.t('arg_gc_threshold_help'))
     parser.add_argument('--enable-smart-reclaim', action='store_true', default=True,
-                        help='启用智能内存回收（默认：启用）')
+                        help=i18n.t('arg_smart_reclaim_help'))
     parser.add_argument('--no-smart-reclaim', action='store_true',
-                        help='禁用智能内存回收')
+                        help=i18n.t('arg_no_smart_reclaim_help'))
     
     # 语言设置
     parser.add_argument('--lang', '--language', type=str, default='zh',
                         choices=['zh', 'en'],
-                        help='界面语言 (zh=中文, en=English)')
+                        help=i18n.t('arg_lang_help'))
     
     args = parser.parse_args()
     
+    # 确保语言设置正确（以防通过参数解析改变）
+    i18n.set_language(args.lang)
+    
     # 处理缓存参数
     enable_cache = args.enable_cache and not args.no_cache
-    
-    # 设置语言
-    i18n.set_language(args.lang)
     
     # 转换 input_size 为元组
     input_size = tuple(args.input_size)
@@ -702,7 +776,7 @@ class GPUManager:
                     elif intel_found:
                         return 'Intel'
         except Exception as e:
-            Logger.warning(f"WMI 检测失败: {e}")
+            Logger.warning(i18n.t('wmi_detection_failed').format(e))
         return 'Unknown'
     
     @staticmethod
@@ -717,7 +791,7 @@ class GPUManager:
                     return True
             return False
         except Exception as e:
-            Logger.warning(f"ROCm 检测失败: {e}")
+            Logger.warning(i18n.t('rocm_detection_failed').format(e))
             return False
     
     def initialize(self) -> torch.device:
@@ -727,11 +801,11 @@ class GPUManager:
         if self.args.mode != 'auto':
             Logger.info(i18n.t('user_specified_mode_info').format(self.args.mode.upper()))
         else:
-            Logger.info("自动检测模式")
+            Logger.info(i18n.t('auto_detect_mode'))
         
         force_mode = self.args.mode
         if force_mode == 'cpu':
-            Logger.info("强制使用 CPU 模式")
+            Logger.info(i18n.t('force_cpu_mode'))
         
         try:
             if torch.cuda.is_available() and force_mode != 'cpu':
@@ -749,31 +823,31 @@ class GPUManager:
                 # 判断 GPU 类型
                 if self.config.is_rocm:
                     self.config.vendor = "AMD"
-                    Logger.success(f"检测到 AMD GPU: {self.config.name}")
-                    Logger.info("   ROCm 支持: 是")
+                    Logger.success(i18n.t('amd_gpu_detected').format(self.config.name))
+                    Logger.info("   ROCm: Yes")
                 elif 'nvidia' in gpu_name_lower or 'geforce' in gpu_name_lower or 'quadro' in gpu_name_lower or 'tesla' in gpu_name_lower or 'rtx' in gpu_name_lower or 'gtx' in gpu_name_lower:
                     self.config.vendor = "NVIDIA"
-                    Logger.success(f"检测到 NVIDIA GPU: {self.config.name}")
+                    Logger.success(i18n.t('nvidia_gpu_detected').format(self.config.name))
                 elif 'amd' in gpu_name_lower or 'radeon' in gpu_name_lower or 'rx' in gpu_name_lower:
                     self.config.vendor = "AMD"
-                    Logger.success(f"检测到 AMD GPU: {self.config.name}")
+                    Logger.success(i18n.t('amd_gpu_detected').format(self.config.name))
                 elif 'intel' in gpu_name_lower or 'iris' in gpu_name_lower or 'uhd' in gpu_name_lower or 'arc' in gpu_name_lower:
                     self.config.vendor = "Intel"
-                    Logger.success(f"检测到 Intel GPU: {self.config.name}")
+                    Logger.success(i18n.t('intel_gpu_detected').format(self.config.name))
                 else:
                     # 如果 GPU 名称无法判断，使用系统检测结果
                     if system_vendor == 'NVIDIA':
                         self.config.vendor = "NVIDIA"
-                        Logger.success(f"检测到 NVIDIA GPU: {self.config.name}")
+                        Logger.success(i18n.t('nvidia_gpu_detected').format(self.config.name))
                     elif system_vendor == 'AMD':
                         self.config.vendor = "AMD"
-                        Logger.success(f"检测到 AMD GPU: {self.config.name}")
+                        Logger.success(i18n.t('amd_gpu_detected').format(self.config.name))
                     elif system_vendor == 'Intel':
                         self.config.vendor = "Intel"
-                        Logger.success(f"检测到 Intel GPU: {self.config.name}")
+                        Logger.success(i18n.t('intel_gpu_detected').format(self.config.name))
                     else:
                         self.config.vendor = "Unknown"
-                        Logger.warning(f"检测到未知 GPU: {self.config.name}")
+                        Logger.warning(i18n.t('unknown_gpu_detected').format(self.config.name))
                 
                 Logger.info(i18n.t('cuda_version_info').format(self.config.cuda_version))
                 Logger.info(i18n.t('gpu_count_info').format(self.config.count))
@@ -781,14 +855,14 @@ class GPUManager:
                 # 强制模式处理
                 if force_mode == 'nvidia':
                     if self.config.vendor != "NVIDIA":
-                        Logger.warning(f"强制使用 NVIDIA 模式，但检测到 {self.config.vendor} GPU")
+                        Logger.warning(i18n.t('force_nvidia_mode').format(self.config.vendor))
                     self.config.vendor = "NVIDIA"
-                    Logger.info("已强制设置为 NVIDIA 模式")
+                    Logger.info(i18n.t('set_nvidia_mode'))
                 elif force_mode == 'amd':
                     if self.config.vendor != "AMD":
-                        Logger.warning(f"强制使用 AMD 模式，但检测到 {self.config.vendor} GPU")
+                        Logger.warning(i18n.t('force_amd_mode').format(self.config.vendor))
                     self.config.vendor = "AMD"
-                    Logger.info("已强制设置为 AMD 模式")
+                    Logger.info(i18n.t('set_amd_mode'))
                 
                 # 获取显卡属性
                 props = torch.cuda.get_device_properties(0)
@@ -800,7 +874,7 @@ class GPUManager:
                 Logger.info(i18n.t('gpu_memory_info_full').format(props.total_memory / 1024**3))
                 
                 if props.total_memory < 4 * 1024**3:
-                    Logger.warning("   警告: 显存不足 4GB,可能导致性能问题")
+                    Logger.warning(i18n.t('low_vram_warning'))
                 
                 # 配置优化
                 self._configure_optimizations(props)
@@ -813,7 +887,7 @@ class GPUManager:
                 self._setup_cpu_mode()
         
         except Exception as e:
-            Logger.error(f"设备初始化失败: {e}")
+            Logger.error(i18n.t('gpu_init_failed').format(e))
             self.device = torch.device("cpu")
             self.config.available = False
         
@@ -826,7 +900,7 @@ class GPUManager:
         
         # 启动 GPU 自动内存监控
         if self.config.available and self.args.enable_auto_gc:
-            Logger.info("\nGPU 内存管理:")
+            Logger.info(i18n.t('gpu_memory_management'))
             Logger.success(i18n.t('auto_gc_enabled'))
             Logger.info(i18n.t('gc_interval_info').format(self.args.auto_gc_interval))
             Logger.info(i18n.t('gc_threshold_info').format(self.args.auto_gc_threshold))
@@ -835,14 +909,14 @@ class GPUManager:
                 threshold_percent=self.args.auto_gc_threshold
             )
         elif self.config.available:
-            Logger.info("\nGPU 内存管理:")
+            Logger.info(i18n.t('gpu_memory_management'))
             Logger.info(i18n.t('auto_gc_disabled'))
         
         return self.device
     
     def _configure_optimizations(self, props):
         """配置 GPU 优化选项"""
-        Logger.info("\n根据显卡能力配置优化:")
+        Logger.info(i18n.t('configure_optimizations'))
         
         # cuDNN Benchmark
         if self.config.vendor == "NVIDIA" and self.config.compute_capability >= 60 and not self.args.no_cudnn_benchmark:
@@ -852,10 +926,10 @@ class GPUManager:
                 self.config.use_cudnn_benchmark = True
                 Logger.success(i18n.t('cudnn_enabled_status'))
             except Exception as e:
-                Logger.warning(f"  cuDNN Benchmark: 启用失败 ({e})")
+                Logger.warning(i18n.t('cudnn_enable_failed').format(e))
         else:
             if self.config.vendor != "NVIDIA":
-                Logger.info("  cuDNN Benchmark: 不适用(非 NVIDIA GPU)")
+                Logger.info(i18n.t('cudnn_not_applicable'))
             else:
                 Logger.warning(i18n.t('cudnn_disabled_capability'))
         
@@ -868,10 +942,10 @@ class GPUManager:
                 self.config.use_tf32 = True
                 Logger.success(i18n.t('tf32_enabled_status'))
             except Exception as e:
-                Logger.warning(f"  TensorFloat32: 启用失败 ({e})")
+                Logger.warning(i18n.t('tf32_enable_failed').format(e))
         else:
             if self.config.vendor != "NVIDIA":
-                Logger.info("  TensorFloat32: 不适用(非 NVIDIA GPU)")
+                Logger.info(i18n.t('tf32_not_applicable'))
             else:
                 Logger.warning(i18n.t('tf32_disabled_support'))
         
@@ -902,13 +976,13 @@ class GPUManager:
             best_config = tuner.benchmark_optimizations()
             
             if best_config:
-                Logger.success("性能自动调优完成！")
-                Logger.info("已应用最优配置")
+                Logger.success(i18n.t('tuning_complete'))
+                Logger.info(i18n.t('config_applied'))
             else:
-                Logger.warning("性能自动调优失败，使用默认配置")
+                Logger.warning(i18n.t('tuning_failed_default'))
         except Exception as e:
-            Logger.warning(f"性能自动调优失败: {e}")
-            Logger.info("使用默认配置")
+            Logger.warning(i18n.t('tuning_failed').format(e))
+            Logger.info(i18n.t('use_default_config'))
     
     def _setup_cpu_mode(self):
         """设置 CPU 模式"""
@@ -916,23 +990,17 @@ class GPUManager:
         self.config.vendor = system_vendor
         self.device = torch.device("cpu")
 
-        Logger.warning("使用 CPU 模式")
-        Logger.info("   原因: CUDA/ROCm 不可用")
+        Logger.warning(i18n.t('cpu_mode'))
+        Logger.info(i18n.t('cuda_unavailable_cpu_mode'))
 
         if system_vendor == "AMD":
-            Logger.info("   检测到 AMD 显卡,但 PyTorch 未编译 ROCm 支持")
-            Logger.info("   解决方案: 安装 ROCm 版本的 PyTorch")
+            Logger.info(i18n.t('amd_no_rocm'))
         elif system_vendor == "NVIDIA":
-            Logger.info("   检测到 NVIDIA 显卡,但 CUDA 不可用")
-            Logger.info("   请检查:")
-            Logger.info("     1. 是否安装 NVIDIA 显卡驱动")
-            Logger.info("     2. 显卡是否支持 CUDA")
-            Logger.info("     3. PyTorch 是否编译了 CUDA 支持")
+            Logger.info(i18n.t('nvidia_no_cuda'))
         elif system_vendor == "Intel":
-            Logger.info("   检测到 Intel 显卡")
-            Logger.info("   Intel GPU 暂不支持 GPU 加速")
+            Logger.info(i18n.t('intel_gpu'))
         else:
-            Logger.info("   未检测到支持的 GPU")
+            Logger.info(i18n.t('no_supported_gpu'))
     
     def get_memory_info(self, device_id: int = 0) -> Dict[str, float]:
         """
@@ -970,7 +1038,7 @@ class GPUManager:
                 'used_percent': (allocated_memory / total_memory) * 100
             }
         except Exception as e:
-            Logger.warning(f"获取 GPU 内存信息失败: {e}")
+            Logger.warning(i18n.t('gpu_memory_query_failed').format(e))
             return {
                 'total_mb': 0,
                 'used_mb': 0,
@@ -991,7 +1059,7 @@ class GPUManager:
             是否成功清理
         """
         if not torch.cuda.is_available():
-            Logger.debug("GPU 不可用，跳过缓存清理")
+            Logger.debug(i18n.t('gpu_unavailable_skip_cache'))
             return False
         
         try:
@@ -1003,13 +1071,13 @@ class GPUManager:
             after_info = self.get_memory_info(device_id)
             freed_mb = before_info['used_mb'] - after_info['used_mb']
             
-            Logger.debug(f"GPU 缓存已清理 - 设备 {device_id}")
+            Logger.debug(i18n.t('gpu_cache_cleared').format(device_id))
             if freed_mb > 1:
                 Logger.info(i18n.t('vram_freed_info').format(freed_mb))
             
             return True
         except Exception as e:
-            Logger.warning(f"清理 GPU 缓存失败: {e}")
+            Logger.warning(i18n.t('gpu_cache_clear_failed').format(e))
             return False
     
     def force_gc(self, device_id: int = 0) -> bool:
@@ -1025,7 +1093,7 @@ class GPUManager:
             是否成功回收
         """
         if not torch.cuda.is_available():
-            Logger.debug("GPU 不可用，跳过垃圾回收")
+            Logger.debug(i18n.t('gpu_unavailable_skip_gc'))
             return False
         
         try:
@@ -1047,13 +1115,13 @@ class GPUManager:
             after_info = self.get_memory_info(device_id)
             freed_mb = before_info['used_mb'] - after_info['used_mb']
             
-            Logger.debug(f"GPU 垃圾回收完成 - 设备 {device_id}")
+            Logger.debug(i18n.t('gpu_gc_complete').format(device_id))
             if freed_mb > 1:
                 Logger.info(i18n.t('vram_recovered_info').format(freed_mb))
             
             return True
         except Exception as e:
-            Logger.warning(f"GPU 垃圾回收失败: {e}")
+            Logger.warning(i18n.t('gpu_gc_failed_msg').format(e))
             return False
     
     def smart_reclaim(self, threshold_percent: float = 85.0, device_id: int = 0) -> bool:
@@ -1076,17 +1144,17 @@ class GPUManager:
             mem_info = self.get_memory_info(device_id)
             
             if mem_info['used_percent'] >= threshold_percent:
-                Logger.warning(f"GPU 显存使用率过高: {mem_info['used_percent']:.1f}%")
+                Logger.warning(i18n.t('gpu_vram_high').format(mem_info['used_percent']))
                 Logger.info(i18n.t('vram_total_info').format(mem_info['total_mb']))
                 Logger.info(i18n.t('vram_used_info').format(mem_info['used_mb']))
                 Logger.info(i18n.t('vram_free_info').format(mem_info['free_mb']))
-                Logger.info("  执行智能内存回收...")
+                Logger.info(i18n.t('smart_recovery'))
                 
                 return self.force_gc(device_id)
             
             return False
         except Exception as e:
-            Logger.warning(f"智能内存回收失败: {e}")
+            Logger.warning(i18n.t('smart_recovery_failed').format(e))
             return False
     
     def start_auto_monitor(self, interval_seconds: int = 30, threshold_percent: float = 85.0):
@@ -1100,46 +1168,49 @@ class GPUManager:
             threshold_percent: 触发清理的阈值（百分比）
         """
         if not torch.cuda.is_available():
-            Logger.info("GPU 不可用，跳过自动内存监控")
+            Logger.info(i18n.t('gpu_unavailable_monitor'))
             return
         
         if hasattr(self, '_monitor_thread') and self._monitor_thread.is_alive():
             Logger.warning(i18n.t('monitoring_already_running'))
             return
-        
+
         import threading
         import time
-        
-        self._monitor_active = True
+
+        # 使用 threading.Event 替代布尔标志，确保线程安全
+        if not hasattr(self, '_monitor_active'):
+            self._monitor_active = threading.Event()
+        self._monitor_active.set()  # 设置事件标志
         self._monitor_interval = interval_seconds
         self._monitor_threshold = threshold_percent
-        
+
         def monitor_loop():
             """监控循环"""
             Logger.info(i18n.t('gpu_monitoring_started').format(interval_seconds, threshold_percent))
-            
-            while self._monitor_active:
+
+            while self._monitor_active.is_set():  # 使用 is_set() 检查事件状态
                 try:
                     time.sleep(interval_seconds)
-                    
-                    if not self._monitor_active:
+
+                    if not self._monitor_active.is_set():
                         break
-                    
+
                     self.smart_reclaim(threshold_percent)
-                    
+
                 except Exception as e:
-                    Logger.warning(f"内存监控异常: {e}")
-            
-            Logger.info("GPU 自动内存监控已停止")
-        
+                    Logger.warning(i18n.t('monitor_exception').format(e))
+
+            Logger.info(i18n.t('gpu_monitor_stopped_msg'))
+
         self._monitor_thread = threading.Thread(target=monitor_loop, daemon=True)
         self._monitor_thread.start()
-    
+
     def stop_auto_monitor(self):
         """停止自动内存监控"""
         if hasattr(self, '_monitor_active'):
-            self._monitor_active = False
-        
+            self._monitor_active.clear()  # 清除事件标志
+
         if hasattr(self, '_monitor_thread') and self._monitor_thread.is_alive():
             self._monitor_thread.join(timeout=5)
     
@@ -1216,7 +1287,7 @@ class CacheManager:
                 self.cache_order.append(cache_key)
                 
                 hit_rate = self.hits / (self.hits + self.misses) * 100
-                Logger.debug(f"缓存命中: 命中率 {hit_rate:.1f}% ({self.hits}/{self.hits + self.misses})")
+                Logger.debug(i18n.t('cache_hit_debug').format(hit_rate, self.hits, self.hits + self.misses))
                 
                 return result
             else:
@@ -1243,12 +1314,12 @@ class CacheManager:
             if len(self.cache) >= self.max_size:
                 oldest_key = self.cache_order.pop(0)
                 del self.cache[oldest_key]
-                Logger.debug(f"缓存已满，淘汰最旧条目: {oldest_key}")
+                Logger.debug(i18n.t('cache_evict').format(oldest_key))
             
             # 存入缓存
             self.cache[cache_key] = result
             self.cache_order.append(cache_key)
-            Logger.debug(f"缓存已添加: {cache_key}")
+            Logger.debug(i18n.t('cache_added').format(cache_key))
     
     def clear(self):
         """清空缓存"""
@@ -1257,7 +1328,7 @@ class CacheManager:
             self.cache_order.clear()
             self.hits = 0
             self.misses = 0
-            Logger.info("缓存已清空")
+            Logger.info(i18n.t('cache_cleared_msg'))
     
     def get_stats(self) -> Dict[str, Any]:
         """
@@ -1297,17 +1368,20 @@ class RedisCacheManager:
     def __init__(self, redis_url: str = "redis://localhost:6379/0", prefix: str = "mlsharp"):
         """
         初始化 Redis 缓存管理器
-        
+
         Args:
             redis_url: Redis 连接 URL
             prefix: 缓存键前缀
+            trust_redis: 是否信任 Redis 数据源（启用 pickle 反序列化）
+                         警告：仅在 Redis 服务器受信任时启用，否则可能导致安全风险
         """
         self.redis_url = redis_url
         self.prefix = prefix
+        self.trust_redis = True  # 默认信任，因为通常是本地 Redis
         self.redis_client = None
         self.enabled = False
         self._init_redis()
-    
+
     def _init_redis(self):
         """初始化 Redis 客户端"""
         try:
@@ -1318,38 +1392,66 @@ class RedisCacheManager:
             self.enabled = True
             Logger.info(i18n.t('redis_connected_info').format(self.redis_url))
         except ImportError:
-            Logger.warning("redis 模块未安装，Redis 缓存将不可用")
-            Logger.info("安装命令: pip install redis")
+            Logger.warning(i18n.t('redis_not_installed_msg'))
+            Logger.info(i18n.t('redis_install_cmd_msg'))
         except Exception as e:
-            Logger.warning(f"Redis 连接失败: {e}")
-            Logger.info("Redis 缓存将不可用，使用本地缓存代替")
-    
+            Logger.warning(i18n.t('redis_connection_failed_msg').format(e))
+            Logger.info(i18n.t('redis_unavailable_msg'))
+
     def _get_cache_key(self, image: np.ndarray, f_px: float) -> str:
         """计算缓存键"""
         import hashlib
         image_hash = hashlib.md5(image.tobytes()).hexdigest()
         return f"{self.prefix}:result:{image_hash}_{f_px:.6f}"
-    
+
     def get(self, image: np.ndarray, f_px: float) -> Optional[Any]:
-        """从 Redis 获取缓存结果"""
+        """从 Redis 获取缓存结果
+
+        安全警告：使用 pickle 反序列化数据，仅在 Redis 服务器受信任时使用
+        """
         if not self.enabled or not self.redis_client:
             return None
-        
+
         try:
             cache_key = self._get_cache_key(image, f_px)
             data = self.redis_client.get(cache_key)
-            
+
             if data:
-                # 反序列化
+                # 安全检查：仅在信任 Redis 时使用 pickle 反序列化
+                if not self.trust_redis:
+                    Logger.warning(i18n.t('redis_data_untrusted_msg').format(cache_key))
+                    return None
+                # 反序列化 - 使用受限的 Unpickler 提高安全性
                 import pickle
-                result = pickle.loads(data)
-                Logger.debug(f"Redis 缓存命中: {cache_key}")
+                import io
+
+                class RestrictedUnpickler(pickle.Unpickler):
+                    """受限的 Unpickler，只允许反序列化已知的安全类型"""
+                    safe_classes = {}
+
+                    def find_class(self, module, name):
+                        # 允许 numpy 和 torch 相关的类型
+                        if module.startswith('numpy') or module.startswith('torch'):
+                            return super().find_class(module, name)
+                        # 允许基本类型
+                        if module == 'builtins' and name in ('dict', 'list', 'tuple', 'set', 'frozenset', 'str', 'int', 'float', 'bool', 'bytes', 'NoneType'):
+                            return super().find_class(module, name)
+                        # 其他类型需要显式允许
+                        if (module, name) in self.safe_classes:
+                            return super().find_class(module, name)
+                        raise pickle.UnpicklingError(i18n.t('unsafe_deserialize').format(module, name))
+
+                result = RestrictedUnpickler(io.BytesIO(data)).load()
+                Logger.debug(i18n.t('redis_cache_hit').format(cache_key))
                 return result
             else:
-                Logger.debug(f"Redis 缓存未命中: {cache_key}")
+                Logger.debug(i18n.t('redis_cache_miss').format(cache_key))
                 return None
+        except pickle.UnpicklingError as e:
+            Logger.warning(i18n.t('redis_deserialize_rejected_msg').format(e))
+            return None
         except Exception as e:
-            Logger.error(f"Redis 缓存获取失败: {e}")
+            Logger.error(i18n.t('redis_get_failed').format(e))
             return None
     
     def set(self, image: np.ndarray, f_px: float, result: Any, ttl: int = 3600):
@@ -1373,9 +1475,9 @@ class RedisCacheManager:
             
             # 存入 Redis
             self.redis_client.setex(cache_key, ttl, data)
-            Logger.debug(f"Redis 缓存已添加: {cache_key} (TTL: {ttl}s)")
+            Logger.debug(i18n.t('redis_cache_added').format(cache_key, ttl))
         except Exception as e:
-            Logger.error(f"Redis 缓存存储失败: {e}")
+            Logger.error(i18n.t('redis_set_failed').format(e))
     
     def clear(self):
         """清空 Redis 缓存"""
@@ -1389,9 +1491,9 @@ class RedisCacheManager:
                 self.redis_client.delete(*keys)
                 Logger.info(i18n.t('redis_cleared_info').format(len(keys)))
             else:
-                Logger.info("Redis 缓存为空")
+                Logger.info(i18n.t('redis_cache_empty'))
         except Exception as e:
-            Logger.error(f"Redis 缓存清空失败: {e}")
+            Logger.error(i18n.t('redis_clear_failed').format(e))
     
     def get_stats(self) -> Dict[str, Any]:
         """获取 Redis 缓存统计信息"""
@@ -1410,7 +1512,7 @@ class RedisCacheManager:
                 "url": self.redis_url
             }
         except Exception as e:
-            Logger.error(f"Redis 缓存统计失败: {e}")
+            Logger.error(i18n.t('redis_stats_failed').format(e))
             return {
                 "enabled": False,
                 "type": "local",
@@ -1422,9 +1524,9 @@ class RedisCacheManager:
         if self.redis_client:
             try:
                 self.redis_client.close()
-                Logger.debug("Redis 连接已关闭")
+                Logger.debug(i18n.t('redis_conn_closed'))
             except Exception as e:
-                Logger.debug(f"关闭 Redis 连接失败: {e}")
+                Logger.debug(i18n.t('redis_conn_close_failed').format(e))
 
 # ================= Webhook 管理器 =================
 class WebhookManager:
@@ -1446,10 +1548,10 @@ class WebhookManager:
         try:
             import httpx
             self.http_client = httpx.AsyncClient(timeout=30.0)
-            Logger.info("Webhook 客户端已初始化")
+            Logger.info(i18n.t('webhook_client_init_msg'))
         except ImportError:
-            Logger.warning("httpx 模块未安装，Webhook 功能将不可用")
-            Logger.info("安装命令: pip install httpx")
+            Logger.warning(i18n.t('httpx_not_installed'))
+            Logger.info(i18n.t('httpx_install_cmd'))
             self.http_client = None
     
     def register_webhook(self, event_type: str, url: str):
@@ -1461,7 +1563,7 @@ class WebhookManager:
             url: Webhook URL
         """
         if not self.enabled:
-            Logger.warning("Webhook 未启用，无法注册")
+            Logger.warning(i18n.t('webhook_disabled_msg'))
             return
         
         self.webhooks[event_type] = url
@@ -1492,7 +1594,7 @@ class WebhookManager:
         url = self.webhooks[event_type]
         
         if not self.http_client:
-            Logger.error("HTTP 客户端未初始化，无法发送 Webhook")
+            Logger.error(i18n.t('http_client_not_init_msg'))
             return
         
         try:
@@ -1509,9 +1611,9 @@ class WebhookManager:
             if response.status_code == 200:
                 Logger.info(i18n.t('webhook_sent_info').format(event_type, url))
             else:
-                Logger.warning(f"Webhook 发送失败: {event_type} -> {url} (状态码: {response.status_code})")
+                Logger.warning(i18n.t('webhook_send_failed_msg').format(event_type, url, response.status_code))
         except Exception as e:
-            Logger.error(f"Webhook 发送异常: {event_type} -> {url} (错误: {e})")
+            Logger.error(i18n.t('webhook_send_exception_msg').format(event_type, url, e))
     
     async def notify_task_completed(self, task_id: str, url: str, processing_time: float):
         """通知任务完成"""
@@ -1538,7 +1640,7 @@ class WebhookManager:
         """关闭 HTTP 客户端"""
         if self.http_client:
             await self.http_client.aclose()
-            Logger.info("Webhook 客户端已关闭")
+            Logger.info(i18n.t('webhook_client_closed_msg'))
 
 
 # ================= 性能自动调优器 =================
@@ -1600,7 +1702,7 @@ class PerformanceAutoTuner:
                         return cache
             return None
         except Exception as e:
-            Logger.debug(f"加载性能调优缓存失败: {e}")
+            Logger.debug(i18n.t('load_tuning_cache_failed').format(e))
             return None
     
     def _save_results_to_config(self, best_config: Dict[str, Any]):
@@ -1611,7 +1713,7 @@ class PerformanceAutoTuner:
             best_config: 最优配置
         """
         if not self.config_file_path:
-            Logger.warning("未指定配置文件路径，无法保存调优结果")
+            Logger.warning(i18n.t('no_config_path'))
             return
         
         try:
@@ -1712,11 +1814,11 @@ class PerformanceAutoTuner:
                     json.dump(config_data, f, indent=2, ensure_ascii=False)
             
             if has_existing_cache:
-                Logger.success(f"性能调优结果已更新到配置文件: {self.config_file_path}")
+                Logger.success(i18n.t('tuning_results_updated').format(self.config_file_path))
             else:
-                Logger.success(f"性能调优结果已添加到配置文件: {self.config_file_path}")
+                Logger.success(i18n.t('tuning_results_added').format(self.config_file_path))
         except Exception as e:
-            Logger.warning(f"保存性能调优结果失败: {e}")
+            Logger.warning(i18n.t('tuning_results_save_failed').format(e))
     
     def benchmark_optimizations(self) -> Dict[str, Any]:
         """
@@ -1737,71 +1839,71 @@ class PerformanceAutoTuner:
                 return best_config
         
         Logger.section("performance_tuning_title")
-        Logger.info("正在测试不同优化配置...")
+        Logger.info(i18n.t('testing_optimizations'))
         
         # 测试配置列表
         test_configs = [
             {
-                'name': '基准配置',
+                'name': i18n.t('tune_baseline'),
                 'amp': False,
                 'cudnn_benchmark': False,
                 'tf32': False,
-                'description': '无任何优化'
+                'description': i18n.t('tune_baseline_desc')
             },
             {
-                'name': '仅 AMP',
+                'name': i18n.t('tune_amp_only'),
                 'amp': True,
                 'cudnn_benchmark': False,
                 'tf32': False,
-                'description': '仅启用混合精度推理'
+                'description': i18n.t('tune_amp_only_desc')
             },
             {
-                'name': '仅 cuDNN Benchmark',
+                'name': i18n.t('tune_cudnn_only'),
                 'amp': False,
                 'cudnn_benchmark': True,
                 'tf32': False,
-                'description': '仅启用 cuDNN 自动调优'
+                'description': i18n.t('tune_cudnn_only_desc')
             },
             {
-                'name': '仅 TF32',
+                'name': i18n.t('tune_tf32_only'),
                 'amp': False,
                 'cudnn_benchmark': False,
                 'tf32': True,
-                'description': '仅启用 TensorFloat32'
+                'description': i18n.t('tune_tf32_only_desc')
             },
             {
-                'name': 'AMP + cuDNN Benchmark',
+                'name': i18n.t('tune_amp_cudnn'),
                 'amp': True,
                 'cudnn_benchmark': True,
                 'tf32': False,
-                'description': 'AMP 和 cuDNN 自动调优'
+                'description': i18n.t('tune_amp_cudnn_desc')
             },
             {
-                'name': 'AMP + TF32',
+                'name': i18n.t('tune_amp_tf32'),
                 'amp': True,
                 'cudnn_benchmark': False,
                 'tf32': True,
-                'description': 'AMP 和 TensorFloat32'
+                'description': i18n.t('tune_amp_tf32_desc')
             },
             {
-                'name': '全部优化',
+                'name': i18n.t('tune_all'),
                 'amp': True,
                 'cudnn_benchmark': True,
                 'tf32': True,
-                'description': '启用所有优化'
+                'description': i18n.t('tune_all_desc')
             }
         ]
         
         # 根据显卡能力过滤不适用的配置
         if self.gpu_config.vendor != "NVIDIA":
             test_configs = [cfg for cfg in test_configs if not (cfg['cudnn_benchmark'] or cfg['tf32'])]
-            Logger.info("非 NVIDIA GPU，仅测试 AMP 优化")
+            Logger.info(i18n.t('tune_non_nvidia'))
         elif self.gpu_config.compute_capability < 60:
             test_configs = [cfg for cfg in test_configs if not cfg['cudnn_benchmark']]
-            Logger.info("显卡计算能力 < 6.0，跳过 cuDNN Benchmark")
+            Logger.info(i18n.t('tune_skip_cudnn'))
         elif self.gpu_config.compute_capability < 80:
             test_configs = [cfg for cfg in test_configs if not cfg['tf32']]
-            Logger.info("显卡不支持 TF32，跳过 TF32 测试")
+            Logger.info(i18n.t('tune_skip_tf32'))
         
         # 执行基准测试
         results = []
@@ -1825,14 +1927,14 @@ class PerformanceAutoTuner:
                 })
                 
             except Exception as e:
-                Logger.warning(f"  测试失败: {e}")
+                Logger.warning(i18n.t('test_config_failed').format(e))
                 continue
         
         # 选择最优配置
         if results:
             best_result = min(results, key=lambda x: x['avg_time'])
             Logger.section("tuning_results_title")
-            Logger.success(f"最优配置: {best_result['config']['name']}")
+            Logger.success(i18n.t('best_config_result').format(best_result['config']['name']))
             Logger.info(i18n.t('best_config_desc_info').format(best_result['config']['description']))
             Logger.info(i18n.t('avg_inference_time_info').format(best_result['avg_time']))
             Logger.info(i18n.t('throughput_info_full').format(best_result['throughput']))
@@ -1850,7 +1952,7 @@ class PerformanceAutoTuner:
             
             return best_result['config']
         else:
-            Logger.warning("所有配置测试失败，使用默认配置")
+            Logger.warning(i18n.t('all_tests_failed'))
             return test_configs[0] if test_configs else {}
     
     def _apply_config(self, config: Dict[str, Any]):
@@ -1918,7 +2020,7 @@ class PerformanceAutoTuner:
                 with torch.no_grad():
                     _ = self._dummy_forward(dummy_input, dummy_disparity)
             except Exception as e:
-                Logger.debug(f"预热运行时出现异常: {e}")
+                Logger.debug(i18n.t('warmup_exception').format(e))
                 # 继续进行，因为预热失败不是致命错误
                 continue
         
@@ -2014,23 +2116,23 @@ class ModelManager:
             from sharp.utils import io
             from sharp.utils.gaussians import Gaussians3D, SceneMetaData, save_ply, unproject_gaussians
             
-            Logger.info("正在创建预测器...")
+            Logger.info(i18n.t('creating_predictor_msg'))
             self.predictor = create_predictor(PredictorParams())
             
-            Logger.info("正在加载模型权重...")
+            Logger.info(i18n.t('loading_weights_msg'))
             state_dict = torch.load(self.config.checkpoint, weights_only=True, map_location=self.device)
             
-            Logger.info("正在加载权重到预测器...")
+            Logger.info(i18n.t('loading_weights_to_predictor_msg'))
             self.predictor.load_state_dict(state_dict)
             self.predictor.eval()
             self.predictor.to(self.device)
             
-            Logger.success("模型加载完成!")
+            Logger.success(i18n.t('model_loaded_success'))
             Logger.info(i18n.t('device_info_full').format(self.device))
             
             # 应用梯度检查点
             if self.gradient_checkpointing and self.gpu_config.available:
-                Logger.info("正在应用梯度检查点...")
+                Logger.info(i18n.t('applying_gradient_checkpointing_msg'))
                 self._apply_gradient_checkpointing()
                 Logger.success(i18n.t('grad_checkpoint_enabled'))
             
@@ -2040,25 +2142,14 @@ class ModelManager:
             
         except ImportError as e:
             Logger.error(
-                f"Sharp 模块导入失败: {e}",
-                "可能的原因:\n"
-                "1. Sharp 库未安装\n"
-                "2. 模型文件路径错误\n"
-                "3. Python 环境配置不正确\n\n"
-                "解决方案:\n"
-                "- 检查 model_assets/ 文件夹是否存在\n"
-                "- 重新安装依赖: pip install -r requirements.txt\n"
-                "- 确保使用正确的 Python 环境"
+                i18n.t('sharp_import_error_msg').format(e),
+                i18n.t('sharp_import_reasons')
             )
             sys.exit(1)
         except Exception as e:
             Logger.error(
-                f"模型加载失败: {e}",
-                "请检查:\n"
-                "1. 模型文件是否完整\n"
-                "2. PyTorch 版本是否兼容\n"
-                "3. 是否有足够的内存/显存\n"
-                "4. Python 环境是否正确配置"
+                i18n.t('model_load_error_msg').format(e),
+                i18n.t('model_load_check')
             )
             sys.exit(1)
     
@@ -2081,7 +2172,7 @@ class ModelManager:
                     return checkpoint(original_forward, x, use_reentrant=False)
                 
                 self.predictor.monodepth_model.forward = checkpointed_forward
-                Logger.info("  已应用梯度检查点到 monodepth 模型")
+                Logger.info(i18n.t('grad_checkpoint_monodepth'))
             
             if hasattr(self.predictor, 'decoder'):
                 # 包装 decoder
@@ -2091,11 +2182,11 @@ class ModelManager:
                     return checkpoint(original_forward, x, use_reentrant=False)
                 
                 self.predictor.decoder.forward = checkpointed_forward
-                Logger.info("  已应用梯度检查点到 decoder")
+                Logger.info(i18n.t('grad_checkpoint_decoder'))
             
         except Exception as e:
-            Logger.warning(f"应用梯度检查点失败: {e}")
-            Logger.info("  梯度检查点未启用，将使用正常推理模式")
+            Logger.warning(i18n.t('grad_checkpoint_failed_msg').format(e))
+            Logger.info(i18n.t('grad_checkpoint_fallback_msg'))
     
     @torch.no_grad()
     def predict(self, image: np.ndarray, f_px: float) -> Any:
@@ -2127,7 +2218,7 @@ class ModelManager:
                     
                     gaussians_ndc = self.predictor(image_resized_pt, disparity_factor)
             except Exception as e:
-                Logger.warning(f"混合精度推理失败,回退到 FP32: {e}")
+                Logger.warning(i18n.t('mixed_precision_fallback_msg').format(e))
                 image_pt = torch.from_numpy(image.copy()).float().to(self.device, non_blocking=True).permute(2, 0, 1) / 255.0
                 disparity_factor = torch.tensor([f_px / width], dtype=torch.float32, device=self.device)
                 
@@ -2195,7 +2286,7 @@ class MLSharpApp:
             try:
                 shutil.rmtree(self.app_config.temp_dir)
             except OSError as e:
-                Logger.warning(f"删除临时目录失败: {e}")
+                Logger.warning(i18n.t('temp_dir_delete_failed_msg').format(e))
         os.makedirs(self.app_config.temp_dir, exist_ok=True)
         
         # 初始化 GPU
@@ -2218,9 +2309,9 @@ class MLSharpApp:
         
         # 清空缓存（如果指定）
         if self.args.clear_cache:
-            Logger.info("正在清空缓存...")
+            Logger.info(i18n.t('clearing_cache'))
             self.model_manager.cache_manager.clear()
-            Logger.success("缓存已清空")
+            Logger.success(i18n.t('cache_cleared_success'))
         
         # 初始化监控指标
         self.metrics_manager = init_metrics(enable_gpu=self.gpu_config.available)
@@ -2336,13 +2427,17 @@ class MLSharpApp:
         app.mount("/files", StaticFiles(directory=self.app_config.temp_dir), name="files")
         
         # ================= 异常处理器 =================
-        
+
         @app.exception_handler(Exception)
         async def general_exception_handler(request, exc):
             """通用异常处理器"""
+            # 记录详细错误信息到日志（用于调试）
+            Logger.error(f"Internal server error [{request.url.path}]: {exc}", exc_info=exc)
+
+            # 返回通用错误消息给客户端（避免敏感信息泄露）
             error_response = self._create_error_response(
                 error="InternalServerError",
-                message=str(exc),
+                message=i18n.t('internal_server_error'),
                 status_code=500,
                 path=request.url.path
             )
@@ -2356,7 +2451,7 @@ class MLSharpApp:
             """404 异常处理器"""
             error_response = self._create_error_response(
                 error="NotFound",
-                message="请求的资源不存在",
+                message=i18n.t('resource_not_found'),
                 status_code=404,
                 path=request.url.path
             )
@@ -2370,7 +2465,7 @@ class MLSharpApp:
             """422 验证异常处理器"""
             error_response = self._create_error_response(
                 error="ValidationError",
-                message="请求参数验证失败",
+                message=i18n.t('validation_error'),
                 status_code=422,
                 path=request.url.path
             )
@@ -2445,7 +2540,7 @@ class MLSharpApp:
                 try:
                     stats["gpu"]["memory_mb"] = torch.cuda.memory_allocated(self.device) / 1024**2
                 except Exception as e:
-                    Logger.warning(f"获取GPU内存信息失败: {e}")
+                    Logger.warning(i18n.t('get_gpu_mem_failed').format(e))
                     stats["gpu"]["memory_mb"] = 0
             return stats
         
@@ -2478,7 +2573,7 @@ class MLSharpApp:
             self.model_manager.cache_manager.clear()
             if self.redis_cache and self.redis_cache.enabled:
                 self.redis_cache.clear()
-            return {"status": "success", "message": "缓存已清空"}
+            return {"status": "success", "message": i18n.t('cache_clear_msg')}
         
         @v1_router.get("/webhooks", tags=["Webhook"])
         async def list_webhooks():
@@ -2494,7 +2589,7 @@ class MLSharpApp:
                 return {
                     "enabled": False,
                     "webhooks": {},
-                    "message": "Webhook 未启用"
+                    "message": i18n.t('webhook_not_enabled')
                 }
             return {
                 "enabled": self.webhook_manager.enabled,
@@ -2522,7 +2617,7 @@ class MLSharpApp:
             if not self.webhook_manager:
                 return {
                     "status": "error",
-                    "message": "Webhook 未启用"
+                    "message": i18n.t('webhook_not_enabled')
                 }
             event_type = webhook_data.get("event_type")
             url = webhook_data.get("url")
@@ -2530,13 +2625,13 @@ class MLSharpApp:
             if not event_type or not url:
                 return {
                     "status": "error",
-                    "message": "缺少必要参数: event_type 和 url"
+                    "message": i18n.t('missing_params')
                 }
             
             self.webhook_manager.register_webhook(event_type, url)
             return {
                 "status": "success",
-                "message": f"Webhook 已注册: {event_type} -> {url}"
+                "message": i18n.t('webhook_registered_resp').format(event_type, url)
             }
         
         @v1_router.delete("/webhooks/{event_type}", tags=["Webhook"])
@@ -2554,12 +2649,12 @@ class MLSharpApp:
             if not self.webhook_manager:
                 return {
                     "status": "error",
-                    "message": "Webhook 未启用"
+                    "message": i18n.t('webhook_not_enabled')
                 }
             self.webhook_manager.unregister_webhook(event_type)
             return {
                 "status": "success",
-                "message": f"Webhook 已注销: {event_type}"
+                "message": i18n.t('webhook_unregistered_info').format(event_type)
             }
         
         @app.get("/metrics", tags=["Monitoring"])
@@ -2587,16 +2682,15 @@ class MLSharpApp:
             """监控中间件 - 记录所有 HTTP 请求"""
             import time
             start_time = time.time()
-            
-            # 增加活跃任务计数
-            if request.url.path == "/api/predict":
-                self.metrics_manager.set_active_tasks(
-                    self.metrics_manager.active_tasks._value.get() + 1 if self.metrics_manager.active_tasks._value else 1
-                )
-            
+
+            # 增加活跃任务计数（使用原子操作）
+            is_predict_request = request.url.path in ("/api/predict", "/v1/predict")
+            if is_predict_request:
+                self.metrics_manager.active_tasks.inc()
+
             try:
                 response = await call_next(request)
-                
+
                 # 记录请求指标
                 duration = time.time() - start_time
                 self.metrics_manager.record_http_request(
@@ -2605,28 +2699,79 @@ class MLSharpApp:
                     status=response.status_code,
                     duration=duration
                 )
-                
+
                 return response
             finally:
-                # 减少活跃任务计数
-                if request.url.path == "/api/predict" or request.url.path == "/v1/predict":
-                    current_tasks = self.metrics_manager.active_tasks._value.get() if self.metrics_manager.active_tasks._value else 1
-                    self.metrics_manager.set_active_tasks(max(0, current_tasks - 1))
+                # 减少活跃任务计数（使用原子操作）
+                if is_predict_request:
+                    self.metrics_manager.active_tasks.dec()
         
         # 注册 v1 路由
         app.include_router(v1_router)
         
         return app
     
+    # 允许的图片类型
+    ALLOWED_IMAGE_TYPES = {
+        'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/bmp'
+    }
+    ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.bmp'}
+    MAX_FILE_SIZE_MB = 50  # 最大文件大小限制（MB）
+
     async def _handle_predict(self, file: UploadFile):
         """处理预测请求 - 异步优化版本"""
         from sharp.utils import io
         from sharp.utils.gaussians import save_ply
-        
+
+        # 文件类型验证
+        file_ext = os.path.splitext(file.filename)[1].lower() if file.filename else ''
+        content_type = file.content_type or ''
+
+        if content_type not in self.ALLOWED_IMAGE_TYPES and file_ext not in self.ALLOWED_EXTENSIONS:
+            Logger.warning(i18n.t('api_unsupported_file_type').format(content_type, file_ext))
+            return JSONResponse({
+                "status": "error",
+                "message": i18n.t('api_unsupported_file_simple').format(content_type or file_ext),
+                "solution": i18n.t('api_supported_formats')
+            }, status_code=400)
+
+        # 文件大小验证（通过读取前几个字节检查）
+        try:
+            # 读取文件头用于验证
+            header = await file.read(8)
+            await file.seek(0)  # 重置文件指针
+
+            # 检查文件签名（魔数）
+            if header[:2] == b'\xff\xd8':  # JPEG
+                pass
+            elif header[:8] == b'\x89PNG\r\n\x1a\n':  # PNG
+                pass
+            elif header[:4] == b'RIFF' and header[8:12] == b'WEBP':  # WebP (需要读取更多)
+                pass
+            elif header[:2] in (b'BM', b'BA'):  # BMP
+                pass
+            else:
+                Logger.warning(i18n.t('api_unknown_format').format(header[:8].hex()))
+                # 不直接拒绝，让后续处理决定
+        except Exception as e:
+            Logger.warning(i18n.t('api_header_check_failed').format(e))
+
         task_id = str(uuid.uuid4())[:8]
         try:
             start_time = time.time()
             task_dir = os.path.join(self.app_config.temp_dir, task_id)
+
+            # 路径安全验证：确保生成的路径在预期的临时目录内
+            task_dir_real = os.path.realpath(task_dir)
+            temp_dir_real = os.path.realpath(self.app_config.temp_dir)
+            if not task_dir_real.startswith(temp_dir_real):
+                Logger.error(i18n.t('api_path_traversal_detected').format(task_dir))
+                return JSONResponse({
+                    "status": "error",
+                    "message": i18n.t('api_invalid_path'),
+                    "solution": i18n.t('api_contact_support')
+                }, status_code=400)
+
             output_dir = os.path.join(task_dir, "output")
             os.makedirs(output_dir, exist_ok=True)
             
@@ -2636,13 +2781,13 @@ class MLSharpApp:
                 await asyncio.to_thread(self._save_file, file, file_path)
                 Logger.info(i18n.t('task_file_saved').format(task_id, file_path))
             except Exception as e:
-                Logger.error(f"[Task {task_id}] 保存上传文件失败: {e}")
+                Logger.error(i18n.t('api_save_upload_failed').format(task_id, e))
                 elapsed_time = time.time() - start_time
                 self.metrics_manager.record_predict_request("error", elapsed_time)
                 return JSONResponse({
                     "status": "error",
-                    "message": f"保存上传文件失败: {str(e)}",
-                    "solution": "请检查文件格式是否正确或联系技术支持"
+                    "message": i18n.t('api_save_upload_msg').format(str(e)),
+                    "solution": i18n.t('api_check_format_support')
                 }, status_code=500)
             
             # 加载图像 - 使用 asyncio.to_thread
@@ -2650,13 +2795,13 @@ class MLSharpApp:
             try:
                 image, _, f_px = await asyncio.to_thread(io.load_rgb, Path(file_path))
             except Exception as e:
-                Logger.error(f"[Task {task_id}] 加载图像失败: {e}")
+                Logger.error(i18n.t('api_load_image_failed_task').format(task_id, e))
                 elapsed_time = time.time() - start_time
                 self.metrics_manager.record_predict_request("error", elapsed_time)
                 return JSONResponse({
                     "status": "error",
-                    "message": f"加载图像失败: {str(e)}",
-                    "solution": "请检查上传的图片格式是否支持(JPG/PNG等)"
+                    "message": i18n.t('api_load_image_msg').format(str(e)),
+                    "solution": i18n.t('api_check_image_format')
                 }, status_code=500)
             height, width = image.shape[:2]
             load_time = time.time() - load_start
@@ -2665,7 +2810,7 @@ class MLSharpApp:
             
             # 检查图片尺寸
             if width > 4096 or height > 4096:
-                Logger.warning(f"[Task {task_id}] 图片尺寸过大 ({width}x{height}),可能导致性能问题")
+                Logger.warning(i18n.t('api_image_too_large_task').format(task_id, width, height))
             
             # 检查 Redis 缓存
             cached_result = None
@@ -2673,7 +2818,7 @@ class MLSharpApp:
                 try:
                     cached_result = self.redis_cache.get(image, f_px)
                 except Exception as e:
-                    Logger.warning(f"[Task {task_id}] Redis缓存获取失败: {e}, 将使用本地缓存")
+                    Logger.warning(i18n.t('api_redis_failed_task').format(task_id, e))
                     # 即使Redis失败，也继续尝试本地缓存
                     cached_result = None
             
@@ -2686,13 +2831,13 @@ class MLSharpApp:
                     save_time = time.time() - save_start
                     Logger.info(i18n.t('task_cache_hit_info').format(task_id, save_time))
                 except Exception as e:
-                    Logger.error(f"[Task {task_id}] 缓存结果PLY保存失败: {e}")
+                    Logger.error(i18n.t('api_cache_ply_failed').format(task_id, e))
                     elapsed_time = time.time() - start_time
                     self.metrics_manager.record_predict_request("error", elapsed_time)
                     return JSONResponse({
                         "status": "error",
-                        "message": f"缓存结果PLY保存失败: {str(e)}",
-                        "solution": "请检查磁盘空间或联系技术支持"
+                        "message": i18n.t('api_cache_ply_msg').format(str(e)),
+                        "solution": i18n.t('api_check_disk')
                     }, status_code=500)
                 
                 # 重命名
@@ -2700,7 +2845,7 @@ class MLSharpApp:
                 try:
                     await asyncio.to_thread(os.rename, output_ply_path, final_ply)
                 except OSError as e:
-                    Logger.error(f"[Task {task_id}] 重命名文件失败: {e}")
+                    Logger.error(i18n.t('api_rename_failed_task').format(task_id, e))
                     # 如果重命名失败，直接使用原路径
                     final_ply = output_ply_path
                 
@@ -2718,7 +2863,7 @@ class MLSharpApp:
                     try:
                         await self.webhook_manager.notify_task_completed(task_id, download_url, elapsed_time)
                     except Exception as e:
-                        Logger.warning(f"[Task {task_id}] Webhook通知发送失败: {e}")
+                        Logger.warning(i18n.t('api_webhook_failed_task').format(task_id, e))
                 
                 return {"status": "success", "url": download_url, "processing_time": elapsed_time, "task_id": task_id}
             
@@ -2731,18 +2876,18 @@ class MLSharpApp:
                     torch.cuda.synchronize()
             except RuntimeError as e:
                 if "out of memory" in str(e).lower():
-                    Logger.critical(f"[Task {task_id}] 显存不足: {e}")
+                    Logger.critical(i18n.t('api_vram_insufficient_task').format(task_id, e))
                     elapsed_time = time.time() - start_time
                     self.metrics_manager.record_predict_request("error", elapsed_time)
                     return JSONResponse({
                         "status": "error",
-                        "message": "显存不足,请使用较小的图片",
-                        "solution": "建议使用小于 1024x1024 的图片,或关闭其他占用显存的程序"
+                        "message": i18n.t('api_vram_insufficient'),
+                        "solution": i18n.t('api_vram_solution')
                     }, status_code=507)  # 507 Insufficient Storage
                 else:
                     raise  # 重新抛出其他RuntimeError
             except Exception as e:
-                Logger.error(f"[Task {task_id}] 推理过程失败: {e}")
+                Logger.error(i18n.t('api_inference_failed_task').format(task_id, e))
                 elapsed_time = time.time() - start_time
                 self.metrics_manager.record_predict_request("error", elapsed_time)
                 
@@ -2752,8 +2897,8 @@ class MLSharpApp:
                 
                 return JSONResponse({
                     "status": "error",
-                    "message": f"推理过程失败: {str(e)}",
-                    "solution": "请尝试重新启动程序或使用较小的图片"
+                    "message": i18n.t('api_inference_failed').format(str(e)),
+                    "solution": i18n.t('api_retry_small_image')
                 }, status_code=500)
             
             inference_time = time.time() - inference_start
@@ -2766,7 +2911,7 @@ class MLSharpApp:
                     self.redis_cache.set(image, f_px, gaussians, ttl=3600)
                     Logger.info(i18n.t('task_redis_cache_info').format(task_id))
                 except Exception as e:
-                    Logger.warning(f"[Task {task_id}] Redis 缓存失败: {e}")
+                    Logger.warning(i18n.t('api_redis_cache_failed_task').format(task_id, e))
             
             # 保存 PLY - 使用 asyncio.to_thread
             output_ply_path = os.path.join(output_dir, "output.ply")
@@ -2777,13 +2922,13 @@ class MLSharpApp:
                 Logger.info(i18n.t('task_ply_save_info').format(task_id, save_time))
                 self.metrics_manager.record_predict_stage("ply_save", save_time)
             except Exception as e:
-                Logger.error(f"[Task {task_id}] PLY保存失败: {e}")
+                Logger.error(i18n.t('api_ply_save_failed_task').format(task_id, e))
                 elapsed_time = time.time() - start_time
                 self.metrics_manager.record_predict_request("error", elapsed_time)
                 return JSONResponse({
                     "status": "error",
-                    "message": f"PLY保存失败: {str(e)}",
-                    "solution": "请检查磁盘空间或联系技术支持"
+                    "message": i18n.t('api_ply_save_failed').format(str(e)),
+                    "solution": i18n.t('api_check_disk')
                 }, status_code=500)
             
             # 重命名 - 异步文件操作
@@ -2791,7 +2936,7 @@ class MLSharpApp:
             try:
                 await asyncio.to_thread(os.rename, output_ply_path, final_ply)
             except OSError as e:
-                Logger.error(f"[Task {task_id}] 重命名文件失败: {e}")
+                Logger.error(i18n.t('api_rename_failed_task').format(task_id, e))
                 # 如果重命名失败，直接使用原路径
                 final_ply = output_ply_path
             
@@ -2812,17 +2957,17 @@ class MLSharpApp:
             
         except RuntimeError as e:
             if "out of memory" in str(e).lower():
-                Logger.error(f"[Task {task_id}] 显存不足: {e}")
+                Logger.error(i18n.t('api_vram_insufficient_task').format(task_id, e))
                 elapsed_time = time.time() - start_time
                 self.metrics_manager.record_predict_request("error", elapsed_time)
                 return JSONResponse({
                     "status": "error",
-                    "message": "显存不足,请使用较小的图片",
-                    "solution": "建议使用小于 1024x1024 的图片,或关闭其他占用显存的程序"
+                    "message": i18n.t('api_vram_insufficient'),
+                    "solution": i18n.t('api_vram_solution')
                 }, status_code=507)
             raise
         except Exception as e:
-            Logger.error(f"[Task {task_id}] 处理失败: {e}")
+            Logger.error(i18n.t('api_processing_failed_task').format(task_id, e))
             elapsed_time = time.time() - start_time
             self.metrics_manager.record_predict_request("error", elapsed_time)
             
@@ -2832,27 +2977,36 @@ class MLSharpApp:
             
             return JSONResponse({
                 "status": "error",
-                "message": f"处理失败: {str(e)}",
-                "solution": "请尝试重新启动程序或使用较小的图片"
+                "message": i18n.t('api_processing_failed').format(str(e)),
+                "solution": i18n.t('api_retry_small_image')
             }, status_code=500)
     
     def _save_file(self, upload_file, file_path):
-        """保存上传的文件"""
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(upload_file.file, buffer)
+        """保存上传的文件
+
+        Args:
+            upload_file: FastAPI UploadFile 对象
+            file_path: 保存路径
+        """
+        try:
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(upload_file.file, buffer)
+        finally:
+            # 确保关闭上传文件句柄
+            upload_file.file.close()
     
     def print_startup_banner(self):
         """打印启动横幅"""
         print("\n" + "=" * 60)
         print(" " * 20 + "MLSharp")
-        print(" " * 12 + "3D 模型生成工具 - 自动检测 GPU")
+        print(" " * 12 + i18n.t('banner_title'))
         print("=" * 60)
         print()
-        print("支持模式:")
-        print("  ✓ NVIDIA GPU (CUDA)")
-        print("  ✓ AMD GPU (ROCm)")
-        print("  ✓ Intel GPU (CPU 回退)")
-        print("  ✓ CPU 模式")
+        print(i18n.t('banner_modes'))
+        print("  ✓ " + i18n.t('banner_nvidia'))
+        print("  ✓ " + i18n.t('banner_amd'))
+        print("  ✓ " + i18n.t('banner_intel'))
+        print("  ✓ " + i18n.t('banner_cpu'))
         print()
         print("=" * 60)
         print()
@@ -2875,14 +3029,14 @@ class MLSharpApp:
             Logger.info(i18n.t('gpu_vendor_info').format(self.gpu_config.vendor))
             Logger.info(i18n.t('gpu_model_info').format(self.gpu_config.name))
             if self.gpu_config.vendor == "NVIDIA":
-                Logger.info(f"计算能力: {self.gpu_config.compute_capability}")
+                Logger.info(i18n.t('compute_capability_simple').format(self.gpu_config.compute_capability))
                 Logger.info(i18n.t('amp_enabled_info') if self.gpu_config.use_amp else i18n.t('amp_disabled_info'))
                 Logger.info(i18n.t('cudnn_enabled_info') if self.gpu_config.use_cudnn_benchmark else i18n.t('cudnn_disabled_info'))
                 Logger.info(i18n.t('tf32_enabled_info') if self.gpu_config.use_tf32 else i18n.t('tf32_disabled_info'))
             elif self.gpu_config.vendor == "AMD":
-                Logger.info("使用 ROCm 加速")
+                Logger.info(i18n.t('rocm_accel'))
         else:
-            Logger.warning("使用 CPU 模式")
+            Logger.warning(i18n.t('cpu_mode_simple'))
             Logger.info(i18n.t('cpu_cores_info').format(os.cpu_count()))
             Logger.info(i18n.t('multithreading_opt_enabled'))
         
@@ -2894,10 +3048,10 @@ class MLSharpApp:
         
         print()
         service_url = f"http://{self.args.host}:{self.args.port}"
-        Logger.success(f"服务地址: {service_url}")
+        Logger.success(i18n.t('service_url_info').format(service_url))
         if not self.args.no_browser:
-            Logger.info("浏览器将自动打开...")
-        Logger.info("按 Ctrl+C 停止服务")
+            Logger.info(i18n.t('browser_open_msg'))
+        Logger.info(i18n.t('ctrl_c_stop'))
         print()
     
     def open_browser(self):
@@ -2907,22 +3061,22 @@ class MLSharpApp:
         try:
             webbrowser.open(service_url)
         except Exception as e:
-            Logger.warning(f"无法自动打开浏览器: {e}")
+            Logger.warning(i18n.t('browser_open_failed').format(e))
             Logger.info(i18n.t('manual_access_info').format(service_url))
     
     def cleanup(self):
         """清理资源"""
-        Logger.info("正在清理资源...")
+        Logger.info(i18n.t('cleaning_resources'))
         
         # 停止 GPU 监控
         if self.metrics_manager:
             self.metrics_manager.stop_monitoring()
-            Logger.info("GPU 监控已停止")
+            Logger.info(i18n.t('gpu_monitor_stopped_log'))
         
         # 停止 GPU 自动内存监控
         if self.gpu_manager:
             self.gpu_manager.stop_auto_monitor()
-            Logger.info("GPU 自动内存监控已停止")
+            Logger.info(i18n.t('gpu_auto_monitor_stopped'))
         
         # 关闭 Webhook 客户端
         if self.webhook_manager:
@@ -2933,11 +3087,11 @@ class MLSharpApp:
                     loop.create_task(self.webhook_manager.close())
                 else:
                     asyncio.run(self.webhook_manager.close())
-                Logger.info("Webhook 客户端已关闭")
+                Logger.info(i18n.t('webhook_closed_log'))
             except Exception as e:
-                Logger.warning(f"关闭 Webhook 客户端失败: {e}")
+                Logger.warning(i18n.t('webhook_close_failed_log').format(e))
         
-        Logger.info("资源清理完成")
+        Logger.info(i18n.t('resources_cleaned'))
     
     def run(self):
         """运行应用"""
@@ -2967,9 +3121,9 @@ class MLSharpApp:
         except KeyboardInterrupt:
             print("\n")
             Logger.section("service_stopped_title")
-            Logger.info("感谢使用 MLSharp!")
+            Logger.info(i18n.t('thanks_using'))
         except Exception as e:
-            Logger.error(f"服务启动失败: {e}")
+            Logger.error(i18n.t('service_start_failed_log').format(e))
             sys.exit(1)
         finally:
             self.cleanup()

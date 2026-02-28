@@ -5,6 +5,10 @@ GPU 检测和兼容性工具模块
 """
 import subprocess
 import platform
+import logging
+
+# 模块级别的日志记录器
+_logger = logging.getLogger(__name__)
 
 def detect_gpu_vendor_wmi():
     """通过 WMI 检测显卡厂商（Windows）"""
@@ -47,7 +51,7 @@ def detect_gpu_vendor_wmi():
                     elif 'intel' in name or 'iris' in name or 'uhd' in name or 'arc' in name:
                         return 'Intel'
     except Exception as e:
-        pass
+        _logger.debug(f"GPU厂商检测失败: {e}")
     return 'Unknown'
 
 def check_rocm_available():
@@ -65,7 +69,8 @@ def check_rocm_available():
             if 'amd' in device_name or 'radeon' in device_name:
                 return True
         return False
-    except Exception:
+    except Exception as e:
+        _logger.debug(f"ROCm可用性检查失败: {e}")
         return False
 
 
@@ -75,14 +80,14 @@ def get_gpu_info():
         import torch
         if not torch.cuda.is_available():
             return None
-        
+
         gpu_info = {
             'name': torch.cuda.get_device_name(0),
             'count': torch.cuda.device_count(),
             'cuda_version': torch.version.cuda,
             'is_rocm': check_rocm_available(),
         }
-        
+
         props = torch.cuda.get_device_properties(0)
         gpu_info.update({
             'compute_capability': props.major * 10 + props.minor,
@@ -91,9 +96,10 @@ def get_gpu_info():
             'memory_gb': props.total_memory / 1024**3,
             'multi_processor_count': props.multi_processor_count,
         })
-        
+
         return gpu_info
-    except Exception:
+    except Exception as e:
+        _logger.debug(f"获取GPU信息失败: {e}")
         return None
 
 def get_gpu_vendor(gpu_name=None):
