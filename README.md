@@ -84,9 +84,6 @@ MLSharp-3D-Maker-GPU-by-Chidc/
 ├── gpu_utils.py                  # GPU 工具模块
 ├── logger.py                     # 日志模块
 ├── metrics.py                    # 监控指标模块 ⭐
-├── test_gpu_gc.py                # GPU 内存回收测试脚本 ⭐
-├── demo_gpu_gc.py                # GPU 内存回收演示脚本 ⭐
-├── GPU_MEMORY_GC_README.md       # GPU 内存回收功能文档 ⭐
 ├── optimistic.md                 # 性能优化方案文档 ⭐
 ├── Start.bat                     # Windows 启动脚本
 ├── Start.ps1                     # PowerShell 启动脚本
