@@ -18,7 +18,7 @@ import asyncio
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from typing import Optional, Tuple, Dict, Any
+from typing import Optional, Tuple, Dict, Any, List
 from pydantic import BaseModel, Field
 
 import numpy as np
@@ -2344,6 +2344,24 @@ class MLSharpApp:
         processing_time: float = Field(..., description="处理时间（秒）")
         task_id: str = Field(..., description="任务 ID")
     
+    class BatchPredictItem(BaseModel):
+        """批处理单项结果模型"""
+        status: str = Field(..., description="请求状态 (success/error)")
+        filename: str = Field(..., description="原始文件名")
+        url: Optional[str] = Field(None, description="生成的 PLY 文件下载地址（成功时）")
+        processing_time: float = Field(..., description="单项处理时间（秒）")
+        task_id: str = Field(..., description="任务 ID")
+        error: Optional[str] = Field(None, description="错误消息（失败时）")
+    
+    class BatchPredictResponse(BaseModel):
+        """批处理响应模型"""
+        status: str = Field(..., description="总体状态 (success/partial/error)")
+        total: int = Field(..., description="总任务数")
+        success: int = Field(..., description="成功数")
+        failed: int = Field(..., description="失败数")
+        total_processing_time: float = Field(..., description="总处理时间（秒）")
+        results: List["MLSharpApp.BatchPredictItem"] = Field(..., description="各任务结果")
+    
     class HealthResponse(BaseModel):
         """健康检查响应模型"""
         status: str = Field(..., description="服务状态 (healthy/unhealthy)")
@@ -2493,6 +2511,27 @@ class MLSharpApp:
                 - processing_time: 处理时间（秒）
             """
             return await self._handle_predict(file)
+        
+        @v1_router.post("/predict/batch", response_model=MLSharpApp.BatchPredictResponse, tags=["Prediction"])
+        async def predict_batch(
+            files: List[UploadFile] = File(..., description="上传的图片文件列表 (JPG格式)")
+        ):
+            """批量处理多张图片生成 3D 模型
+            
+            上传多张 JPG 图片，系统将使用 SHaRP 模型批量生成 3D 高斯泼溅模型。
+            
+            - **files**: JPG 格式的图片文件列表（每个推荐尺寸: 512x512 - 1024x1024）
+            - **限制**: 最多支持 10 个文件同时处理
+            
+            返回:
+                - status: 总体状态 (success/partial/error)
+                - total: 总任务数
+                - success: 成功数
+                - failed: 失败数
+                - total_processing_time: 总处理时间（秒）
+                - results: 各任务结果列表
+            """
+            return await self._handle_predict_batch(files)
         
         @v1_router.get("/health", response_model=MLSharpApp.HealthResponse, tags=["System"])
         async def health_check():
@@ -2980,6 +3019,138 @@ class MLSharpApp:
                 "message": i18n.t('api_processing_failed').format(str(e)),
                 "solution": i18n.t('api_retry_small_image')
             }, status_code=500)
+    
+    async def _handle_predict_batch(self, files: List):
+        """处理批量预测请求
+        
+        Args:
+            files: 上传的文件列表
+            
+        Returns:
+            批量处理结果
+        """
+        from fastapi.responses import JSONResponse
+        
+        MAX_BATCH_SIZE = 10  # 最大批处理数量
+        
+        # 验证批处理数量
+        if len(files) > MAX_BATCH_SIZE:
+            return JSONResponse({
+                "status": "error",
+                "message": i18n.t('api_batch_limit_exceeded').format(len(files), MAX_BATCH_SIZE),
+                "solution": i18n.t('api_batch_limit_solution').format(MAX_BATCH_SIZE)
+            }, status_code=400)
+        
+        if len(files) == 0:
+            return JSONResponse({
+                "status": "error",
+                "message": i18n.t('api_batch_empty'),
+                "solution": i18n.t('api_batch_empty_solution')
+            }, status_code=400)
+        
+        Logger.info(i18n.t('api_batch_start').format(len(files)))
+        
+        batch_start_time = time.time()
+        results: List[Dict[str, Any]] = []
+        success_count = 0
+        failed_count = 0
+        
+        # 顺序处理每个文件（避免 GPU 内存溢出）
+        for idx, file in enumerate(files):
+            file_start_time = time.time()
+            filename = file.filename or f"file_{idx}"
+            task_id = str(uuid.uuid4())[:8]
+            
+            Logger.info(i18n.t('api_batch_item_start').format(idx + 1, len(files), filename))
+            
+            try:
+                # 复用单个预测逻辑
+                result = await self._handle_predict(file)
+                
+                # 处理结果
+                if isinstance(result, dict) and result.get("status") == "success":
+                    success_count += 1
+                    results.append({
+                        "status": "success",
+                        "filename": filename,
+                        "url": result.get("url"),
+                        "processing_time": time.time() - file_start_time,
+                        "task_id": result.get("task_id", task_id),
+                        "error": None
+                    })
+                elif isinstance(result, JSONResponse):
+                    # 解析错误响应
+                    try:
+                        error_body = result.body
+                        if isinstance(error_body, bytes):
+                            error_data = json.loads(error_body.decode('utf-8'))
+                        else:
+                            error_data = error_body
+                        error_msg = error_data.get("message", i18n.t('api_unknown_error'))
+                    except Exception:
+                        error_msg = i18n.t('api_unknown_error')
+                    
+                    failed_count += 1
+                    results.append({
+                        "status": "error",
+                        "filename": filename,
+                        "url": None,
+                        "processing_time": time.time() - file_start_time,
+                        "task_id": task_id,
+                        "error": error_msg
+                    })
+                else:
+                    # 其他类型的响应
+                    failed_count += 1
+                    results.append({
+                        "status": "error",
+                        "filename": filename,
+                        "url": None,
+                        "processing_time": time.time() - file_start_time,
+                        "task_id": task_id,
+                        "error": i18n.t('api_unknown_error')
+                    })
+                    
+            except Exception as e:
+                failed_count += 1
+                Logger.error(i18n.t('api_batch_item_failed').format(idx + 1, filename, e))
+                results.append({
+                    "status": "error",
+                    "filename": filename,
+                    "url": None,
+                    "processing_time": time.time() - file_start_time,
+                    "task_id": task_id,
+                    "error": str(e)
+                })
+            
+            # 每个 item 处理后执行 GPU 内存清理（如果启用）
+            if self.gpu_config.available and hasattr(self, 'args') and getattr(self.args, 'enable_auto_gc', True):
+                import torch
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+        
+        total_time = time.time() - batch_start_time
+        
+        # 确定总体状态
+        if success_count == len(files):
+            overall_status = "success"
+        elif success_count > 0:
+            overall_status = "partial"
+        else:
+            overall_status = "error"
+        
+        Logger.info(i18n.t('api_batch_complete').format(
+            success_count, failed_count, total_time
+        ))
+        
+        return {
+            "status": overall_status,
+            "total": len(files),
+            "success": success_count,
+            "failed": failed_count,
+            "total_processing_time": total_time,
+            "results": results
+        }
     
     def _save_file(self, upload_file, file_path):
         """保存上传的文件

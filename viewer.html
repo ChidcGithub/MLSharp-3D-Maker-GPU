@@ -487,7 +487,7 @@
             <span class="drop-icon">✦</span>
             <div class="drop-text" data-key="import_main">Import</div>
             <div class="drop-sub" data-key="import_sub">Drag & Drop Image/.PLY</div>
-            <input type="file" id="file-input" accept="image/*,.ply" style="display:none">
+            <input type="file" id="file-input" accept="image/*,.ply" multiple style="display:none">
         </div>
     </div>
 
@@ -552,7 +552,17 @@
                 loading_importing: "IMPORTING MODEL",
                 loading_download_general: "DOWNLOADING...",
                 btn_flow_tooltip: "Disperse / Reset Flow",
-                btn_download_tooltip: "Download Model (.ply)"
+                btn_download_tooltip: "Download Model (.ply)",
+                // 批处理相关
+                loading_batch_processing: "BATCH PROCESSING",
+                loading_batch: "Processing {} files...",
+                loading_batch_item: "Loading model {}/{}...",
+                batch_limit_warning: "Maximum {} files allowed. Extra files will be ignored.",
+                batch_result_summary: "Batch complete: {} success, {} failed\nTotal time: {}s",
+                batch_failed_details: "Failed files",
+                batch_all_failed: "All files failed to process",
+                batch_error: "Batch processing error",
+                unknown_error: "Unknown error"
             },
             zh: {
                 subtitle: "高保真可视化 .01",
@@ -580,7 +590,17 @@
                 loading_importing: "正在导入模型",
                 loading_download_general: "下载中...",
                 btn_flow_tooltip: "散开 / 复原 (湍流效果)",
-                btn_download_tooltip: "下载模型 (.ply)"
+                btn_download_tooltip: "下载模型 (.ply)",
+                // 批处理相关
+                loading_batch_processing: "批量处理中",
+                loading_batch: "正在处理 {} 个文件...",
+                loading_batch_item: "加载模型 {}/{}...",
+                batch_limit_warning: "最多支持 {} 个文件，多余的文件将被忽略。",
+                batch_result_summary: "批处理完成：{} 成功，{} 失败\n总耗时：{}秒",
+                batch_failed_details: "失败文件",
+                batch_all_failed: "所有文件处理失败",
+                batch_error: "批处理错误",
+                unknown_error: "未知错误"
             }
         };
 
@@ -1205,21 +1225,68 @@
                 inputEl.type = 'file'; 
                 inputEl.id = 'file-input';
                 inputEl.accept = 'image/*,.ply'; 
+                inputEl.multiple = true;  // 支持多文件
                 inputEl.style.display = 'none';
                 document.body.appendChild(inputEl);
             }
 
             dropArea.onclick = () => inputEl.click();
             
-            inputEl.onchange = e => { if(e.target.files.length) handleFileUpload(e.target.files[0]); };
+            inputEl.onchange = e => { 
+                if(e.target.files.length > 0) {
+                    if(e.target.files.length === 1) {
+                        handleFileUpload(e.target.files[0]);
+                    } else {
+                        handleBatchUpload(Array.from(e.target.files));
+                    }
+                }
+            };
             
             dropArea.ondragover = e => { e.preventDefault(); dropArea.style.backgroundColor = 'rgba(212, 175, 55, 0.1)'; };
             dropArea.ondragleave = e => { e.preventDefault(); dropArea.style.backgroundColor = ''; };
             
             dropArea.ondrop = e => {
                 e.preventDefault(); dropArea.style.backgroundColor = '';
-                if(e.dataTransfer.files.length) handleFileUpload(e.dataTransfer.files[0]);
+                if(e.dataTransfer.files.length > 0) {
+                    if(e.dataTransfer.files.length === 1) {
+                        handleFileUpload(e.dataTransfer.files[0]);
+                    } else {
+                        handleBatchUpload(Array.from(e.dataTransfer.files));
+                    }
+                }
             };
+        }
+
+        function handleBatchUpload(files) {
+            // 分离图片和PLY文件
+            const imageFiles = [];
+            const plyFiles = [];
+            
+            files.forEach(file => {
+                const fileName = file.name.toLowerCase();
+                const extension = fileName.split('.').pop();
+                if (extension === 'ply') {
+                    plyFiles.push(file);
+                } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(extension)) {
+                    imageFiles.push(file);
+                }
+            });
+            
+            // 先处理PLY文件（直接加载）
+            plyFiles.forEach(file => loadPLYFile(file));
+            
+            // 如果有多个图片，使用批处理API
+            if (imageFiles.length > 1) {
+                uploadBatch(imageFiles);
+            } else if (imageFiles.length === 1) {
+                uploadAndGenerate(imageFiles[0]);
+            }
+            
+            // 如果有不支持的文件，显示提示
+            const unsupportedCount = files.length - imageFiles.length - plyFiles.length;
+            if (unsupportedCount > 0) {
+                console.warn(`${unsupportedCount} unsupported file(s) skipped`);
+            }
         }
 
         function handleFileUpload(file) {
@@ -1428,6 +1495,132 @@
                 alert("Error: " + err.message + "\n\nPreview Mode: Backend not connected.\nUse '?url=...' to load external models.");
                 loadingSys.stop();
             }
+        }
+
+        async function uploadBatch(files) {
+            // 限制批处理数量
+            const MAX_BATCH = 10;
+            if (files.length > MAX_BATCH) {
+                alert(getTrans("batch_limit_warning").replace("{}", MAX_BATCH));
+                files = files.slice(0, MAX_BATCH);
+            }
+            
+            loadingSys.start("loading_batch_processing");
+            document.getElementById('loading-text').innerText = getTrans("loading_batch").replace("{}", files.length);
+            
+            let p = 0;
+            const timer = setInterval(() => {
+                if(p < 0.3) {
+                    p += 0.005;
+                    loadingSys.setProgress(p);
+                }
+            }, 50);
+
+            const formData = new FormData();
+            files.forEach(file => {
+                formData.append('files', file);
+            });
+
+            try {
+                const response = await fetch('/v1/predict/batch', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                clearInterval(timer);
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || "API Error");
+                }
+                
+                const data = await response.json();
+                loadingSys.setProgress(0.5);
+
+                if (data.status === 'success' || data.status === 'partial') {
+                    // 显示批处理结果
+                    showBatchResults(data, files);
+                    
+                    // 加载成功的模型
+                    const successResults = data.results.filter(r => r.status === 'success');
+                    for (let i = 0; i < successResults.length; i++) {
+                        const result = successResults[i];
+                        document.getElementById('loading-text').innerText = 
+                            getTrans("loading_batch_item").replace("{}", i + 1).replace("{}", successResults.length);
+                        loadingSys.setProgress(0.5 + (i / successResults.length) * 0.5);
+                        await loadFileFromUrlAsync(result.url, result.filename || files[i]?.name || `model_${i}`);
+                    }
+                    
+                    loadingSys.stop();
+                    updateModelCount();
+                } else {
+                    throw new Error(data.message || getTrans("batch_all_failed"));
+                }
+
+            } catch (err) {
+                clearInterval(timer);
+                console.error(err);
+                alert(getTrans("batch_error") + ": " + err.message);
+                loadingSys.stop();
+            }
+        }
+
+        function showBatchResults(data, files) {
+            const successCount = data.success;
+            const failedCount = data.failed;
+            const totalTime = data.total_processing_time.toFixed(2);
+            
+            // 构建结果消息
+            let message = getTrans("batch_result_summary")
+                .replace("{}", successCount)
+                .replace("{}", failedCount)
+                .replace("{}", totalTime);
+            
+            // 如果有失败的，显示详情
+            if (failedCount > 0) {
+                const failedFiles = data.results
+                    .filter(r => r.status === 'error')
+                    .map(r => `${r.filename}: ${r.error || getTrans("unknown_error")}`)
+                    .join('\n');
+                message += '\n\n' + getTrans("batch_failed_details") + ':\n' + failedFiles;
+            }
+            
+            // 使用 console 显示详细结果，避免弹窗过长
+            console.log('Batch Processing Results:', data);
+            
+            // 如果全部成功或部分成功，短暂显示提示
+            if (successCount > 0) {
+                // 成功时静默处理，只在控制台记录
+                console.log(message);
+            } else {
+                // 全部失败时显示错误
+                alert(message);
+            }
+        }
+
+        async function loadFileFromUrlAsync(url, filename) {
+            return new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('GET', url, true);
+                xhr.responseType = 'arraybuffer';
+
+                xhr.onload = () => {
+                    if (xhr.status === 200) {
+                        rawPlyData = xhr.response;
+                        try {
+                            parsePLYAndAddToScene(xhr.response, filename.replace(/\.[^.]+$/, ''));
+                            resolve();
+                        } catch (err) {
+                            reject(err);
+                        }
+                    } else {
+                        reject(new Error("HTTP " + xhr.status));
+                    }
+                };
+
+                xhr.onerror = () => reject(new Error("Network Error"));
+                xhr.send();
+            });
         }
 
         function loadFileFromUrl(url) {

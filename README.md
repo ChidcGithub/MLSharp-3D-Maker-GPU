@@ -1448,7 +1448,76 @@ with open('input.jpg', 'rb') as f:
     print(f"3D 模型 URL: {result['url']}")
 ```
 
-#### 2. 健康检查
+#### 2. 批量预测接口
+
+**端点**: `POST /v1/predict/batch`
+
+**描述**: 批量处理多张图片生成 3D 模型
+
+**请求**:
+- **Method**: POST
+- **Content-Type**: multipart/form-data
+- **Body**:
+  - `files`: 图片文件列表（JPG 格式，最多 10 个文件）
+
+**响应模型**:
+```json
+{
+  "status": "string",
+  "total": "integer",
+  "success": "integer",
+  "failed": "integer",
+  "total_processing_time": "float",
+  "results": [
+    {
+      "status": "string",
+      "filename": "string",
+      "url": "string",
+      "processing_time": "float",
+      "task_id": "string",
+      "error": "string"
+    }
+  ]
+}
+```
+
+**状态说明**:
+- `success`: 所有文件处理成功
+- `partial`: 部分文件处理成功
+- `error`: 所有文件处理失败
+
+**示例**:
+```bash
+curl -X POST "http://127.0.0.1:8000/v1/predict/batch" \
+  -F "files=@image1.jpg" \
+  -F "files=@image2.jpg" \
+  -F "files=@image3.jpg"
+```
+
+**Python 示例**:
+```python
+import requests
+
+files = [
+    ('files', open('image1.jpg', 'rb')),
+    ('files', open('image2.jpg', 'rb')),
+    ('files', open('image3.jpg', 'rb'))
+]
+
+response = requests.post(
+    'http://127.0.0.1:8000/v1/predict/batch',
+    files=files
+)
+result = response.json()
+print(f"成功: {result['success']}, 失败: {result['failed']}")
+
+# 处理成功的结果
+for item in result['results']:
+    if item['status'] == 'success':
+        print(f"{item['filename']}: {item['url']}")
+```
+
+#### 3. 健康检查
 
 **端点**: `GET /v1/health`
 
@@ -1479,7 +1548,7 @@ curl "http://127.0.0.1:8000/v1/health"
 }
 ```
 
-#### 3. 系统统计
+#### 4. 系统统计
 
 **端点**: `GET /v1/stats`
 
@@ -1516,7 +1585,7 @@ curl "http://127.0.0.1:8000/v1/stats"
 }
 ```
 
-#### 4. 缓存统计
+#### 5. 缓存统计
 
 **端点**: `GET /v1/cache`
 
@@ -1551,7 +1620,7 @@ curl "http://127.0.0.1:8000/v1/cache"
 }
 ```
 
-#### 5. 清空缓存
+#### 6. 清空缓存
 
 **端点**: `POST /v1/cache/clear`
 
@@ -1578,7 +1647,7 @@ curl -X POST "http://127.0.0.1:8000/v1/cache/clear"
 }
 ```
 
-#### 6. Prometheus 指标
+#### 7. Prometheus 指标
 
 **端点**: `GET /metrics`
 
@@ -1591,7 +1660,7 @@ curl -X POST "http://127.0.0.1:8000/v1/cache/clear"
 curl "http://127.0.0.1:8000/metrics"
 ```
 
-#### 7. 获取 Webhook 列表
+#### 8. 获取 Webhook 列表
 
 **端点**: `GET /v1/webhooks`
 
@@ -1623,7 +1692,7 @@ curl "http://127.0.0.1:8000/v1/webhooks"
 }
 ```
 
-#### 8. 注册 Webhook
+#### 9. 注册 Webhook
 
 **端点**: `POST /v1/webhooks`
 
@@ -1663,7 +1732,7 @@ curl -X POST "http://127.0.0.1:8000/v1/webhooks" \
 }
 ```
 
-#### 9. 注销 Webhook
+#### 10. 注销 Webhook
 
 **端点**: `DELETE /v1/webhooks/{event_type}`
 

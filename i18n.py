@@ -768,6 +768,41 @@ class I18n:
                 'api_cache_ply_msg': '缓存结果PLY保存失败: {}',
                 'api_check_disk_space': '请检查磁盘空间或联系技术支持',
                 
+                # 批处理 API 消息
+                'api_batch_limit_exceeded': '批处理数量超过限制: {} > {}',
+                'api_batch_limit_solution': '请将批处理数量减少到 {} 个以内',
+                'api_batch_empty': '批处理请求中没有文件',
+                'api_batch_empty_solution': '请上传至少一个文件',
+                'api_batch_start': '开始批处理 {} 个文件',
+                'api_batch_item_start': '[{}/{}] 开始处理: {}',
+                'api_batch_item_failed': '[{}/{}] 处理失败 {}: {}',
+                'api_batch_complete': '批处理完成: 成功 {}, 失败 {}, 耗时 {:.2f}s',
+                'api_unknown_error': '未知错误',
+                
+                # 批处理响应模型描述
+                'api_batch_status_desc': '总体状态 (success/partial/error)',
+                'api_batch_total_desc': '总任务数',
+                'api_batch_success_desc': '成功数',
+                'api_batch_failed_desc': '失败数',
+                'api_batch_time_desc': '总处理时间（秒）',
+                'api_batch_results_desc': '各任务结果',
+                'api_batch_item_status_desc': '单项状态 (success/error)',
+                'api_batch_item_filename_desc': '原始文件名',
+                'api_batch_item_url_desc': 'PLY文件下载地址（成功时）',
+                'api_batch_item_error_desc': '错误消息（失败时）',
+                
+                # vram insufficient task
+                'api_vram_insufficient_task': '[Task {}] 显存不足: {}',
+                'api_inference_failed_task': '[Task {}] 推理失败: {}',
+                'api_ply_save_failed_task': '[Task {}] PLY保存失败: {}',
+                'api_rename_failed_task': '[Task {}] 重命名失败: {}',
+                'api_redis_cache_failed_task': '[Task {}] Redis缓存失败: {}',
+                'api_redis_failed_task': '[Task {}] Redis缓存获取失败: {}',
+                'api_processing_failed_task': '[Task {}] 处理失败: {}',
+                'api_webhook_failed_task': '[Task {}] Webhook通知失败: {}',
+                'api_processing_failed': '处理失败: {}',
+                'api_retry_small_image': '请尝试使用较小的图片或联系技术支持',
+                
                 # CLI epilog
                 'cli_epilog': """
 启动模式说明:
@@ -1535,6 +1570,41 @@ Solutions:
                 'api_cache_ply_failed_task': '[Task {}] Failed to save cached PLY: {}',
                 'api_cache_ply_msg': 'Failed to save cached PLY: {}',
                 'api_check_disk_space': 'Please check disk space or contact support',
+                
+                # Batch API messages
+                'api_batch_limit_exceeded': 'Batch size exceeds limit: {} > {}',
+                'api_batch_limit_solution': 'Please reduce batch size to {} or fewer files',
+                'api_batch_empty': 'No files in batch request',
+                'api_batch_empty_solution': 'Please upload at least one file',
+                'api_batch_start': 'Starting batch processing for {} files',
+                'api_batch_item_start': '[{}/{}] Processing: {}',
+                'api_batch_item_failed': '[{}/{}] Failed to process {}: {}',
+                'api_batch_complete': 'Batch complete: {} success, {} failed, {:.2f}s',
+                'api_unknown_error': 'Unknown error',
+                
+                # Batch response model descriptions
+                'api_batch_status_desc': 'Overall status (success/partial/error)',
+                'api_batch_total_desc': 'Total tasks',
+                'api_batch_success_desc': 'Success count',
+                'api_batch_failed_desc': 'Failed count',
+                'api_batch_time_desc': 'Total processing time (seconds)',
+                'api_batch_results_desc': 'Individual task results',
+                'api_batch_item_status_desc': 'Item status (success/error)',
+                'api_batch_item_filename_desc': 'Original filename',
+                'api_batch_item_url_desc': 'PLY file download URL (on success)',
+                'api_batch_item_error_desc': 'Error message (on failure)',
+                
+                # vram insufficient task
+                'api_vram_insufficient_task': '[Task {}] Insufficient VRAM: {}',
+                'api_inference_failed_task': '[Task {}] Inference failed: {}',
+                'api_ply_save_failed_task': '[Task {}] Failed to save PLY: {}',
+                'api_rename_failed_task': '[Task {}] Rename failed: {}',
+                'api_redis_cache_failed_task': '[Task {}] Redis cache failed: {}',
+                'api_redis_failed_task': '[Task {}] Redis cache fetch failed: {}',
+                'api_processing_failed_task': '[Task {}] Processing failed: {}',
+                'api_webhook_failed_task': '[Task {}] Webhook notification failed: {}',
+                'api_processing_failed': 'Processing failed: {}',
+                'api_retry_small_image': 'Please try with a smaller image or contact support',
                 
                 # CLI epilog
                 'cli_epilog': """
