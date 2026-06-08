@@ -2243,7 +2243,7 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=ChidcGithub/Laziest-import&type=Date)](https://star-history.com/#ChidcGithub/Laziest-import&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=ChidcGithub/MLSharp-3D-Maker-GPU&type=Date)](https://star-history.com/#ChidcGithub/MLSharp-3D-Maker-GPU&Date)
 
 ---
 
