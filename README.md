@@ -2243,7 +2243,13 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=ChidcGithub/MLSharp-3D-Maker-GPU&type=Date)](https://star-history.com/#ChidcGithub/MLSharp-3D-Maker-GPU&Date)
+<a href="https://www.star-history.com/?type=date&repos=ChidcGithub%2FMLSharp-3D-Maker-GPU">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=ChidcGithub/MLSharp-3D-Maker-GPU&type=date&theme=dark&legend=top-left&sealed_token=yBJn2S6TDPsU1vQpljVbTG-zkvYqUIkoQz7eykvH1nWB6sqbOiEb9ac7Dtfq-Xc7Ctlo_v0XH26jYpUNyD1CgpSMYqDCmziz_LZofW63Vmi4pJR7Ww6H645TyRJ04i9T4sBP6uAkgN4w0SKXFUwMibVZFWSAw6atauC8aePrdcUnhOKPBLKXkDSJ6f0t" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=ChidcGithub/MLSharp-3D-Maker-GPU&type=date&legend=top-left&sealed_token=yBJn2S6TDPsU1vQpljVbTG-zkvYqUIkoQz7eykvH1nWB6sqbOiEb9ac7Dtfq-Xc7Ctlo_v0XH26jYpUNyD1CgpSMYqDCmziz_LZofW63Vmi4pJR7Ww6H645TyRJ04i9T4sBP6uAkgN4w0SKXFUwMibVZFWSAw6atauC8aePrdcUnhOKPBLKXkDSJ6f0t" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=ChidcGithub/MLSharp-3D-Maker-GPU&type=date&legend=top-left&sealed_token=yBJn2S6TDPsU1vQpljVbTG-zkvYqUIkoQz7eykvH1nWB6sqbOiEb9ac7Dtfq-Xc7Ctlo_v0XH26jYpUNyD1CgpSMYqDCmziz_LZofW63Vmi4pJR7Ww6H645TyRJ04i9T4sBP6uAkgN4w0SKXFUwMibVZFWSAw6atauC8aePrdcUnhOKPBLKXkDSJ6f0t" />
+ </picture>
+</a>
 
 ---
 
